@@ -6,8 +6,8 @@ import torch.nn.functional as F
 class BrainNet(nn.Module):
     # n = # of features
     # m = # of labels/classes
-    # num_v = number of verices in graph
-    # p = prob. of an edge in graph
+    # num_v = number of vertices in graph
+    # p = probability of an edge in graph
     def __init__(self, n = 10, m = 2, num_v = 100, p = 0.5, cap = 50, rounds = 0, input_rule = False, full_gd = False, outlayer_connected = True, gd_input = True, gd_output = False):
         super().__init__()
 
@@ -172,7 +172,7 @@ from torch.autograd import Variable
 class BrainNetSequence(BrainNet): 
     def __init__(self, n, m, num_v, p, cap, rounds, input_rule = False, full_gd = False, outlayer_connected = True, gd_output_only = False, gd_input = True, gd_output = False):
         super().__init__(n, m, num_v, p, cap, rounds, input_rule=input_rule, full_gd=full_gd, outlayer_connected=True, gd_output_only=gd_output_only, gd_input=gd_input, gd_output=gd_output)
-        self.vocab_size = n;
+        self.vocab_size = n
 
     def forward(self, inp, hidden): 
         self.activated = torch.zeros(self.num_v)
