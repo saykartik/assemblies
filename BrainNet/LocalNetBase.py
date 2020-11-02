@@ -62,19 +62,19 @@ class LocalNetBase(BrainNet):
         
         self.single_rules = torch.randn((rounds, 4))
 
-        self.rule = torch.randn((2**(rounds+1))**2)
+        self.rnn_rule = torch.randn((2**(rounds+1))**2)
         self.input_rule = torch.randn(2**(rounds + 1))
         self.output_rule = torch.zeros((2**(rounds + 1)) * 2)
         self.step_sz = 0.01
 
-    def get_rnn_rule(self): 
-        return self.rule.clone().detach().view(2 ** (self.rounds + 1), 2 ** (self.rounds + 1))
+    def get_rnn_rule(self):
+        return self.rnn_rule.clone().detach().view(2 ** (self.rounds + 1), 2 ** (self.rounds + 1))
     
     def get_output_rule(self): 
         return self.output_rule.clone().detach().view(2 ** (self.rounds + 1), 2)
 
     def set_rnn_rule(self, rule):
-        self.rule = torch.tensor(rule).flatten().double()
+        self.rnn_rule = torch.tensor(rule).flatten().double()
 
     def set_output_rule(self, rule): 
         self.output_rule = rule.clone().detach().flatten().double()
@@ -114,7 +114,7 @@ class LocalNetBase(BrainNet):
             act *= self.graph
             act = act.long()
 
-            update_func(self.graph_weights, self.rule[act])
+            update_func(self.graph_weights, self.rnn_rule[act])
 
         # update input weights 
         if self.options.use_input_rule:

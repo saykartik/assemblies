@@ -48,6 +48,9 @@ def train_local_rule(X, y, meta_model, rule_epochs, epochs, batch, lr = 1e-2, X_
     sz = len(X)
 
     running_loss = []
+    all_train_acc = []
+    all_test_acc = []
+
     print("Starting Train")
     for epoch in range(1, rule_epochs + 1):
         X, y = shuffle(X, y)
@@ -83,9 +86,14 @@ def train_local_rule(X, y, meta_model, rule_epochs, epochs, batch, lr = 1e-2, X_
                 
         loss = np.mean(cur_losses)
         running_loss.append(loss.item())
-        print("LOSS:", np.mean(running_loss))
+        # print("LOSS:", np.mean(running_loss))
+        print("Current loss:", loss.item())
+        print("Mean loss so far:", np.mean(running_loss))
 
-    return running_loss, train_accuracies, test_accuracies
+        all_train_acc.append(train_accuracies)
+        all_test_acc.append(test_accuracies)
+
+    return running_loss, all_train_acc, all_test_acc
 
 def train_vanilla(X, y, model, epochs, batch, lr = 1e-2):
     X, y = shuffle(X, y)
@@ -152,7 +160,7 @@ def evaluate(X, y, num_labels, model_forward):
         acc = correct / sum(total)
 
         for i in range(num_labels):
-            print("Acc of class", i, ":{0:.4f}".format(ac[i] / total[i]))
+            print("Acc of class", i, ":{0:.4f}".format(ac[i] / (total[i] + 1e-6)))
     return acc
 
 
