@@ -12,7 +12,7 @@ class FFBrainNet(nn.Module):
     p = inter-layer connectivity probability OR array of length l indicating connectivity probability between each hidden layer and the preceding layer
     cap = max number of nodes firing at the hidden layers OR array of length l containing the cap per hidden layer
     """
-    def __init__(self, n=10, m=2, l=1, w=100, p=0.5, cap=50, full_gd=True, gd_input=True, gd_output=False):
+    def __init__(self, n=10, m=2, l=1, w=100, p=0.5, cap=50, full_gd=False, gd_input=True, gd_output=False):
         super().__init__()
 
         # Store params
@@ -166,3 +166,6 @@ class FFBrainNet(nn.Module):
         self.hidden_layer_activations.append(activated.squeeze())
 
         return res
+
+    def forward(self, inputs):
+        return self.forward_pass(inputs)
