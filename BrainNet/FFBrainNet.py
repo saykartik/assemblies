@@ -4,12 +4,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class FFBrainNet(nn.Module):
-    # n = number of input features
-    # m = numbe of output labels
-    # l = number of hidden layers
-    # w = width of hidden layers OR array of length l indicating width of each hidden layer
-    # p = inter-layer connectivity probability OR array of length l indicating connectivity probability between each hidden layer and the preceding layer
-    # cap = max number of nodes firing at the hidden layers OR array of length l containing the cap per hidden layer
+    """
+    n = number of input features
+    m = numbe of output labels
+    l = number of hidden layers
+    w = width of hidden layers OR array of length l indicating width of each hidden layer
+    p = inter-layer connectivity probability OR array of length l indicating connectivity probability between each hidden layer and the preceding layer
+    cap = max number of nodes firing at the hidden layers OR array of length l containing the cap per hidden layer
+    """
     def __init__(self, n=10, m=2, l=1, w=100, p=0.5, cap=50, full_gd=True, gd_input=True, gd_output=False):
         super().__init__()
 
@@ -97,10 +99,12 @@ class FFBrainNet(nn.Module):
 
 
     def generate_random_graphs(self, w, p):
-        # Generates random graphs for the inter-hidden-layer connectivity
-        # Returns a list of l-1 2D arrays over {0,1}, individually sized per layer
-        # The input layer connectivity is generated separately, and so 'None' is returned
-        # as the first element of the list (to keep the indexes in sync with other data structures)
+        """
+        Generates random graphs for the inter-hidden-layer connectivity
+        Returns a list of l-1 2D arrays over {0,1}, individually sized per layer
+        The input layer connectivity is generated separately, and so 'None' is returned
+        as the first element of the list (to keep the indexes in sync with other data structures)
+        """
         graphs = [None]     # First random graph is stored in input_layer
         for i in range(1, self.l):
             graphs.append(self.random_bipartite_graph(w[i-1], w[i], p[i]))
@@ -108,9 +112,11 @@ class FFBrainNet(nn.Module):
 
 
     def random_bipartite_graph(self, a, b, p):
-        # Assuming two adjacent layers of widths a and b, return a bXa 2D array over {0,1}
-        # where 1 indicates the presence of an edge between the nodes of the two layers.
-        # The existence of any edge is independently random with probability p
+        """
+        Assuming two adjacent layers of widths a and b, return a bXa 2D array over {0,1}
+        where 1 indicates the presence of an edge between the nodes of the two layers.
+        The existence of any edge is independently random with probability p
+        """
         adj = torch.rand(b, a).double()
         adj[adj <= 1-p] = 0
         adj[adj > 1-p] = 1
@@ -133,7 +139,7 @@ class FFBrainNet(nn.Module):
 
 
     def feed_forward(self, x, weights, graph, bias, cap):
-        # Perform a single feed-forward layer on input x
+        """Perform a single feed-forward layer on input x"""
         res = torch.mm(weights * graph, x.T)
         res = res + bias[:, None]
         res = F.relu(res)
@@ -142,7 +148,7 @@ class FFBrainNet(nn.Module):
 
 
     def get_output(self, x):
-        # Similar to feed_forward, but softmax instead of relu, and no capping
+        """Similar to feed_forward, but softmax instead of relu, and no capping"""
         res = torch.mm(self.output_weights * self.output_layer, x.T)
         res = res + self.output_bias[:, None]
         return F.softmax(res.T, dim=1)
