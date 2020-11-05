@@ -169,3 +169,37 @@ class FFBrainNet(nn.Module):
 
     def forward(self, inputs):
         return self.forward_pass(inputs)
+
+
+    def reset_weights(self, additive=False, input_rule=False, output_rule=False):
+        """The weights are reset at the beginning of each outer level epoch."""
+        # Only called via forward() in plasticity rule-based models
+
+        # Always reset hidden layer weights
+        graph_weights = []
+        graph_bias = []
+        for i in range(self.l):
+            if i==0:
+                layer_weights = None    # First weight matrix is stored in input_weights
+            elif additive:
+                layer_weights = torch.zeros(self.w[i], self.w[i - 1])
+            else:
+                layer_weights = torch.ones(self.w[i], self.w[i - 1])
+
+            graph_weights.append(layer_weights)
+            graph_bias.append(torch.zeros(self.w[i]))
+
+        self.graph_weights = graph_weights
+        self.graph_bias = graph_bias
+
+        # Input Rule
+        if input_rule:
+            self.input_weights = torch.zeros(self.w[0], self.n)
+
+        # Output Rule
+        if output_rule:
+            if additive:
+                self.output_weights = torch.zeros(self.m, self.w[-1])
+            else:
+                self.output_weights = torch.ones(self.m, self.w[-1])
+            self.output_bias = torch.zeros(self.m)
