@@ -51,7 +51,7 @@ class FFLocalNetBase(FFBrainNet):
         if input_layer:
             self.input_layer = net.input_layer
         if graph:
-            self.graphs = net.graphs
+            self.hidden_layers = net.hidden_layers
         if output_layer:
             self.output_layer = net.output_layer
 
@@ -93,8 +93,8 @@ class FFLocalNetBase(FFBrainNet):
                 postsyn_width = self.w[i]
                 presyn_acts = self.hidden_layer_activations[i-1]
                 postsyn_acts = self.hidden_layer_activations[i]
-                weights = self.graph_weights[i]
-                connectivity = self.graphs[i]
+                weights = self.hidden_weights[i]
+                connectivity = self.hidden_layers[i]
                 presyn_cap = self.cap[i-1]
 
                 # For each synapse between presynaptic and postsynaptic layers,
@@ -135,20 +135,20 @@ class FFLocalNetBase(FFBrainNet):
 
             if self.update_scheme.update_all_edges:
                 rule_idx = 2 * presyn_acts * (presyn_cap + 1) + incoming_firings[label]
-                update_func(self.output_weights[label], self.output_rule[rule_idx])
+                update_func(self.output_weights[label], self.output_rule[rule_idx.long()])
 
                 for j in range(len(prob)):
                     if j != label:
                         rule_idx = (2 * presyn_acts + 1) * (presyn_cap + 1) + incoming_firings[j]
-                        update_func(self.output_weights[j], self.output_rule[rule_idx])
+                        update_func(self.output_weights[j], self.output_rule[rule_idx.long()])
             else:
                 # Prediction
                 rule_idx = (2 * presyn_acts + 1) * (presyn_cap + 1) + incoming_firings[prediction]
-                update_func(self.output_weights[prediction], self.output_rule[rule_idx])
+                update_func(self.output_weights[prediction], self.output_rule[rule_idx.long()])
 
                 # Label
                 rule_idx = 2 * presyn_acts * (presyn_cap + 1) + incoming_firings[label]
-                update_func(self.output_weights[label], self.output_rule[rule_idx])
+                update_func(self.output_weights[label], self.output_rule[rule_idx.long()])
 
 
     def forward(self, inputs, labels, epochs, batch, continue_ = False):
