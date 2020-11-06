@@ -73,11 +73,11 @@ class FFBrainNet(nn.Module):
             for i in range(l):
                 # First weight matrix is stored separately in input_weights (for consistency with BrainNet)
                 self.hidden_weights.append(None if i==0 else nn.Parameter(torch.rand(w[i], w[i-1]) - 0.5))
-                self.hidden_biases.append(nn.Parameter(torch.rand(w[i]) - 0.5))
+                self.hidden_biases.append(nn.Parameter(torch.zeros(w[i])))
 
             # Output Layer
             self.output_weights = nn.Parameter(torch.rand(m, w[-1]) - 0.5)
-            self.output_bias = nn.Parameter(torch.rand(m) - 0.5)
+            self.output_bias = nn.Parameter(torch.zeros(m))
 
         else:
             # DON'T enable autograd for everything
@@ -95,17 +95,17 @@ class FFBrainNet(nn.Module):
             for i in range(l):
                 # First weight matrix is stored separately in input_weights (for consistency with BrainNet)
                 self.hidden_weights.append(None if i==0 else torch.randn(w[i], w[i-1]))     # WHY a normal distribution here, but not for full_gd???
-                self.hidden_biases.append(torch.zeros(w[i]))    # WHY not random, like for full_gd???
+                self.hidden_biases.append(torch.zeros(w[i]))
 
             # Output Layer
             if gd_output:
                 # Enable autograd for output weights / bias
                 # NOTE: Output bias is NOT a Torch Parameter in BrainNet for some reason
                 self.output_weights = nn.Parameter(torch.randn(m, w[-1]))       # WHY a normal distribution here, but not for full_gd???
-                self.output_bias = nn.Parameter(torch.zeros(m))       # Why not random, like in full_gd???
+                self.output_bias = nn.Parameter(torch.zeros(m))
             else:
                 self.output_weights = torch.randn(m, w[-1])
-                self.output_bias = torch.zeros(m)       # Why not random, like in full_gd???
+                self.output_bias = torch.zeros(m)
 
 
     def hidden_layer_graphs(self, w, p):
