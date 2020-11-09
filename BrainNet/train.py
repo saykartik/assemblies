@@ -168,7 +168,6 @@ def train_vanilla(X, y, model, epochs, batch, lr=1e-2):
     '''
     Trains a network using gradient descent (no plasticity rules involved).
     '''
-    X, y = shuffle(X, y)
 
     model.double()
     optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -186,6 +185,7 @@ def train_vanilla(X, y, model, epochs, batch, lr=1e-2):
 
     running_loss = []
     for epoch in range(1, epochs + 1):
+        X, y = shuffle(X, y)
 
         cur_losses = []
         for k in range(sz//batch):
