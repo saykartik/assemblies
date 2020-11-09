@@ -180,6 +180,10 @@ def train_vanilla(X, y, model, epochs, batch, lr=1e-2):
     acc, pred_y = evaluate(X, y, model.m, model)
     print("epoch 0", "Accuracy: {0:.4f}".format(acc))
 
+    total_samples = 0
+    samples = [total_samples]
+    accuracies = [acc]
+
     running_loss = []
     for epoch in range(1, epochs + 1):
 
@@ -202,6 +206,11 @@ def train_vanilla(X, y, model, epochs, batch, lr=1e-2):
 
             cur_losses.append(loss.item())
 
+            total_samples += batch
+            if total_samples % 1000 == 0:
+                samples.append(total_samples)
+                accuracies.append(evaluate(X, y, model.m, model))
+
         running_loss.append(np.mean(cur_losses))
         if epoch % 1 == 0:
             print("Evaluating")
@@ -210,7 +219,7 @@ def train_vanilla(X, y, model, epochs, batch, lr=1e-2):
                 running_loss[-1]), "Accuracy: {0:.4f}".format(acc))
 
     print('Finished Training')
-    return running_loss
+    return running_loss, samples, accuracies
 
 
 def evaluate(X, y, num_labels, model_forward):
