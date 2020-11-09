@@ -15,7 +15,7 @@ def plot_output_stats(all_true_y, all_pred_y_train, all_pred_y_test):
     plt.hist(all_true_y, bins=np.max(all_true_y)+1)
     plt.xlabel('Value')
     plt.ylabel('Count')
-    plt.title('Frequency of ground truth labels')
+    plt.title('Frequency of ground truth labels on training data')
     plt.show()
 
     plt.figure()
@@ -45,6 +45,11 @@ def train_given_rule(X, y, meta_model, verbose=False, X_test=None, y_test=None):
     all_pred_y_train = []
     all_pred_y_test = []
 
+    X, y = shuffle(X, y)
+    if X_test is not None:
+        X_test, y_test = shuffle(X_test, y_test)
+
+    # For each data point in X...
     batch = 1
     for k in range(len(X)):
         inputs_numpy = X[k*batch:(k+1)*batch, :]
@@ -67,12 +72,15 @@ def train_given_rule(X, y, meta_model, verbose=False, X_test=None, y_test=None):
             test_acc, pred_y_test = evaluate(X_test, y_test, meta_model.m, meta_model.forward_pass)
             test_accuracies.append(test_acc)
             print("Test Accuracy: {0:.4f}".format(test_acc))
-                
-            # Store all outputs and labels.
-            for i in range(batch):
-                all_true_y.append(labels_numpy[i])
-                all_pred_y_train.append(pred_y_train[i])
-                all_pred_y_test.append(pred_y_test[i])
+
+            # Store a sample of outputs and labels.
+            sample_sz = 100
+            train_idx = np.random.choice(len(y), sample_sz, replace=False)
+            all_true_y += y[train_idx]
+            all_pred_y_train += pred_y_train[train_idx]
+            if X_test is not None:
+                test_idx = np.random.choice(len(y_test), sample_sz, replace=False)
+                all_pred_y_test += pred_y_test[test_idx]
 
     # Some data to plot and return.
     all_true_y = np.array(all_true_y, dtype=np.int32)
@@ -105,14 +113,20 @@ def train_local_rule(X, y, meta_model, rule_epochs, epochs, batch, lr=1e-2, X_te
     all_pred_y_test = []
 
     print("Starting Train")
+    # For each rule epoch...
     for epoch in range(1, rule_epochs + 1):
+        # Re-shuffle the data
         X, y = shuffle(X, y)
+        if X_test is not None:
+            X_test, y_test = shuffle(X_test, y_test)
 
         print('Outer epoch ', epoch)
 
         cur_losses = []
         train_accuracies = []
         test_accuracies = []
+
+        # For each batch of samples...
         for k in range(sz // batch):
 
             optimizer.zero_grad()
@@ -137,10 +151,10 @@ def train_local_rule(X, y, meta_model, rule_epochs, epochs, batch, lr=1e-2, X_te
                 test_acc, pred_y_test = evaluate(X_test, y_test, meta_model.m, meta_model.forward_pass)
                 test_accuracies.append(test_acc)
                 print("Test Accuracy: {0:.4f}".format(test_acc))
-                
-            # Store all outputs and labels.
+
+            # Store a sample of outputs and labels.
             for i in range(batch):
-                all_true_y.append(labels_numpy[i])
+                all_true_y.append(y[i])
                 all_pred_y_train.append(pred_y_train[i])
                 if not (X_test is None):
                     all_pred_y_test.append(pred_y_test[i])
