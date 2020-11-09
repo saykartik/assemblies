@@ -49,7 +49,16 @@ def optimal_rule(inputs, label, num_class, step_sz):
             for i in range(num_class): 
                 if i == l: continue 
                 c += ind[a][i]
-            return c          
+            return c
+        '''
+        if l == 0: 
+            return ind[a][b]
+        elif l == 1: 
+            return ind[a][1 - b] 
+        print("NEVER")
+        return 1e9
+        '''
+
 
     def W_coef(l): 
         r = [[0,0],[0,0]]
@@ -65,6 +74,7 @@ def optimal_rule(inputs, label, num_class, step_sz):
         return r 
 
     def eval_loss(r): 
+        # r = [-0.008,  0.011,  0.011, -0.010]
         loss = 0
         for i in range(num_class):
             for xj in X[i]: 

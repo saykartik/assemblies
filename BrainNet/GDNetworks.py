@@ -21,7 +21,8 @@ class SingleLayer(nn.Module):
         self.layer = nn.Linear(input_sz, self.m)
         self.softmax = nn.Softmax(dim=1)
         
-    def forward(self, x):        
+    def forward(self, x):
+        # NOTE: in OpenReview, the softmax part is disabled
         return self.softmax(self.layer(x))
     
 

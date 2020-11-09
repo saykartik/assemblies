@@ -8,7 +8,7 @@ class BrainNet(nn.Module):
     # m = # of labels/classes
     # num_v = number of vertices in graph
     # p = probability of an edge in graph
-    def __init__(self, n = 10, m = 2, num_v = 100, p = 0.5, cap = 50, rounds = 0, input_rule = False, full_gd = False, outlayer_connected = True, gd_input = True, gd_output = False):
+    def __init__(self, n = 10, m = 2, num_v = 100, p = 0.5, cap = 50, rounds = 0, input_rule = False, full_gd = False, outlayer_connected = True, gd_input = True, gd_output = False, gd_graph = False):
         super().__init__()
 
         self.cap = cap
@@ -46,7 +46,11 @@ class BrainNet(nn.Module):
             else: 
                 self.output_weights = torch.randn(m, num_v)
             
-            self.graph_weights = torch.randn(num_v, num_v)
+            if gd_graph:
+                self.graph_weights = nn.Parameter(torch.randn(num_v, num_v))
+            else:
+                self.graph_weights = torch.randn(num_v, num_v)
+
             self.graph_bias = torch.zeros(num_v)
             self.output_bias = torch.zeros(m)
         
@@ -96,7 +100,8 @@ class BrainNet(nn.Module):
     def get_output(self, x):
         a =  torch.mm(x, (self.output_layer * self.output_weights).T)
         res = a + self.output_bias
-        #return res
+        # NOTE: in OpenReview, they return res without softmax
+        # return res
         return F.softmax(res, dim=1)
 
     def step_once_graph(self, x):
