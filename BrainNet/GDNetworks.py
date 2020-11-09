@@ -23,7 +23,8 @@ class SingleLayer(nn.Module):
         
     def forward(self, x):
         # NOTE: in OpenReview, the softmax part is disabled
-        return self.softmax(self.layer(x))
+        # return self.softmax(self.layer(x))
+        return self.layer(x)
     
 
 class ReluNetwork(nn.Module):

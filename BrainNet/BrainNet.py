@@ -101,8 +101,8 @@ class BrainNet(nn.Module):
         a =  torch.mm(x, (self.output_layer * self.output_weights).T)
         res = a + self.output_bias
         # NOTE: in OpenReview, they return res without softmax
-        # return res
-        return F.softmax(res, dim=1)
+        return res
+        # return F.softmax(res, dim=1)
 
     def step_once_graph(self, x):
         input_ = torch.mm(self.input_weights * self.input_layer, self.input.T)
