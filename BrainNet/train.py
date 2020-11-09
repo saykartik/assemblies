@@ -209,7 +209,8 @@ def train_vanilla(X, y, model, epochs, batch, lr=1e-2):
             total_samples += batch
             if total_samples % 1000 == 0:
                 samples.append(total_samples)
-                accuracies.append(evaluate(X, y, model.m, model))
+                acc, pred_y = evaluate(X, y, model.m, model)
+                accuracies.append(acc)
 
         running_loss.append(np.mean(cur_losses))
         if epoch % 1 == 0:
