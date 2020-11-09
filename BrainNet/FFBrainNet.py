@@ -205,7 +205,7 @@ class FFBrainNet(nn.Module):
         """
         Reset the network's weights
         Only called via forward() in plasticity rule-based models
-        Weights are reset for each batch during learning of the plasticity rules
+        Weights are reset for each batch during meta-learning of the plasticity rules
         """
 
         # Always reset hidden layer weights
