@@ -1,35 +1,22 @@
-import torch
-import torch.nn as nn
-from LocalNetBase import * 
-
-class LocalNet(LocalNetBase): 
-    '''
-        n = # of features
-        m = # of possible labels
-        num_v = # of nodes in graph
-        p = probability that an edge exists in the graph
-        cap = choose top 'cap' nodes which fire
-        rounds = # of times the graph 'fires'           
-    '''
-    def __init__(self, n, m, num_v, p, cap, rounds, options = Options(), update_scheme = UpdateScheme()):
-        super().__init__(n, m, num_v, p, cap, rounds, options = options, update_scheme = update_scheme)
-
-        if self.options.gd_graph_rule:
-            self.rnn_rule = nn.Parameter(self.rnn_rule)
-        if self.options.use_input_rule:
-            self.input_rule = nn.Parameter(self.input_rule)
-        if self.options.gd_output_rule: 
-            self.output_rule = nn.Parameter(self.output_rule)
-
-
-#######################################################################################################
-# NOTE: Everything below is in the OpenReview supplementary material only, NOT the public repository! #
-#######################################################################################################
 
 import numpy as np
+import torch
+import torch.nn as nn
 import torch.nn.functional as F
+from LocalNetBase import *
 from BrainNet import BrainNetSequence
 from GDNetworks import Regression
+
+class LocalNet(LocalNetBase):
+    def __init__(self, n, m, num_v, p, cap, rounds, step_sz=0.01, options = Options(), update_scheme = UpdateScheme()):
+        super().__init__(n, m, num_v, p, cap, rounds, step_sz, options = options, update_scheme = update_scheme)
+
+        if self.options.gd_graph_rule:
+            self.rule = nn.Parameter(self.rule)
+        if self.options.use_input_rule:
+            self.input_rule = nn.Parameter(self.input_rule)
+        if self.options.gd_output_rule:
+            self.output_rule = nn.Parameter(self.output_rule)
 
 class LocalSingleRules(LocalNetBase):
     def __init__(self, n, m, num_v, p, cap, rounds, single_rules, output_rule):
@@ -322,4 +309,3 @@ class LocalNetMetaRule(LocalNetBase):
           b = self.rounds
         mask = 2**torch.arange(b,-1,-1)
         return x.int().unsqueeze(-1).bitwise_and(mask).ne(0).byte().double()
-

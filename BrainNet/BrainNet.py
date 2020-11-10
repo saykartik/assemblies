@@ -6,9 +6,9 @@ import torch.nn.functional as F
 class BrainNet(nn.Module):
     # n = # of features
     # m = # of labels/classes
-    # num_v = number of vertices in graph
-    # p = probability of an edge in graph
-    def __init__(self, n = 10, m = 2, num_v = 100, p = 0.5, cap = 50, rounds = 0, input_rule = False, full_gd = False, outlayer_connected = True, gd_input = True, gd_output = False):
+    # num_v = number of verices in graph
+    # p = prob. of an edge in graph
+    def __init__(self, n = 10, m = 2, num_v = 100, p = 0.5, cap = 50, rounds = 0, input_rule = False, full_gd = False, outlayer_connected = True, gd_input = False, gd_output = False, gd_graph = False):
         super().__init__()
 
         self.cap = cap
@@ -46,7 +46,11 @@ class BrainNet(nn.Module):
             else: 
                 self.output_weights = torch.randn(m, num_v)
             
-            self.graph_weights = torch.randn(num_v, num_v)
+            if gd_graph:
+                self.graph_weights = nn.Parameter(torch.randn(num_v, num_v))
+            else:
+                self.graph_weights = torch.randn(num_v, num_v)
+                
             self.graph_bias = torch.zeros(num_v)
             self.output_bias = torch.zeros(m)
         
@@ -78,9 +82,9 @@ class BrainNet(nn.Module):
             self.input_weights = torch.zeros(self.num_v, self.n)             
         if output_rule:
             if additive: 
-              self.output_weights = torch.zeros(self.m, self.num_v)
+                self.output_weights = torch.zeros(self.m, self.num_v)
             else: 
-              self.output_weights = torch.ones(self.m, self.num_v)
+                 self.output_weights = torch.ones(self.m, self.num_v)
 
     def random_weights(self):
         self.graph_weights = torch.rand(self.num_v, self.num_v)
@@ -96,8 +100,8 @@ class BrainNet(nn.Module):
     def get_output(self, x):
         a =  torch.mm(x, (self.output_layer * self.output_weights).T)
         res = a + self.output_bias
-        #return res
-        return F.softmax(res, dim=1)
+        return res
+#         return F.softmax(res, dim=1)
 
     def step_once_graph(self, x):
         input_ = torch.mm(self.input_weights * self.input_layer, self.input.T)
@@ -125,9 +129,9 @@ class BrainNet(nn.Module):
             return res
         else: # don't use cap. activate what is greater than 0 after ReLu 
             try: 
-              indices_ = (x[0] > 0).nonzero().T
-              activated_ = torch.zeros_like(x).scatter(1, indices_, 1)
-              self.activated = 2 * self.activated + activated_.squeeze()
+                indices_ = (x[0] > 0).nonzero().T
+                activated_ = torch.zeros_like(x).scatter(1, indices_, 1)
+                self.activated = 2 * self.activated + activated_.squeeze()
             except Exception as e:
                 pass
 
@@ -172,7 +176,7 @@ from torch.autograd import Variable
 class BrainNetSequence(BrainNet): 
     def __init__(self, n, m, num_v, p, cap, rounds, input_rule = False, full_gd = False, outlayer_connected = True, gd_output_only = False, gd_input = True, gd_output = False):
         super().__init__(n, m, num_v, p, cap, rounds, input_rule=input_rule, full_gd=full_gd, outlayer_connected=True, gd_output_only=gd_output_only, gd_input=gd_input, gd_output=gd_output)
-        self.vocab_size = n
+        self.vocab_size = n;
 
     def forward(self, inp, hidden): 
         self.activated = torch.zeros(self.num_v)

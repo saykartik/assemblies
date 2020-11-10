@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
@@ -6,135 +5,70 @@ import torch.optim as optim
 from sklearn.utils import shuffle
 from network import BrainNet
 
-
 np.set_printoptions(precision=4)
 
-
-def plot_output_stats(all_true_y, all_pred_y_train, all_pred_y_test):
-    plt.figure()
-    plt.hist(all_true_y, bins=np.max(all_true_y)+1)
-    plt.xlabel('Value')
-    plt.ylabel('Count')
-    plt.title('Frequency of ground truth labels on training data')
-    plt.show()
-
-    plt.figure()
-    plt.hist(all_pred_y_train, bins=np.max(all_pred_y_train)+1)
-    plt.xlabel('Value')
-    plt.ylabel('Count')
-    plt.title('Frequency of model predictions on training data')
-    plt.show()
-
-    if len(all_pred_y_test):
-        plt.figure()
-        plt.hist(all_pred_y_test, bins=np.max(all_pred_y_test)+1)
-        plt.xlabel('Value')
-        plt.ylabel('Count')
-        plt.title('Frequency of model predictions on testing data')
-        plt.show()
-
-
-def train_given_rule(X, y, meta_model, verbose=False, X_test=None, y_test=None):
-    '''
-    Trains a network using a fixed set of plasticity rules.
-    '''
+def train_given_rule(X, y, meta_model, decay = 1, epochs = 1, verbose = False, X_test = None, y_test = None):
     all_rules = []
     test_accuracies = []
     train_accuracies = []
-    all_true_y = []
-    all_pred_y_train = []
-    all_pred_y_test = []
 
-    X, y = shuffle(X, y)
-    if X_test is not None:
-        X_test, y_test = shuffle(X_test, y_test)
-
-    # For each data point in X...
     batch = 1
-    for k in range(len(X)):
-        inputs_numpy = X[k*batch:(k+1)*batch, :]
-        labels_numpy = y[k*batch:(k+1)*batch]
-        inputs = torch.from_numpy(inputs_numpy).double()
-        labels = torch.from_numpy(labels_numpy).long()
+    for i in range(epochs):
+        print("Epoch #:", i)
+        for k in range(len(X)):
+            inputs = X[k*batch:(k+1)*batch,:]
+            labels = y[k*batch:(k+1)*batch]
+            inputs = torch.from_numpy(inputs).double()
+            labels = torch.from_numpy(labels).long()
 
-        if k == 0:
-            continue_ = False
-        else:
-            continue_ = True
-        loss = meta_model(inputs, labels, 1, batch, continue_=continue_)
+            if i == 0 and k == 0: continue_ = False
+            else: continue_ = True
+            loss = meta_model(inputs, labels, 1, batch, continue_ = continue_)
 
-        if k == len(X) - 1 or (verbose and k % 500 == 0):
-            print("Train on", k, " examples.")
-            acc, pred_y_train = evaluate(X, y, meta_model.m, meta_model.forward_pass)
-            train_accuracies.append(acc)
-            print("Train Accuracy: {0:.4f}".format(acc))
+            if k == len(X) - 1 or (verbose and k % 5000 == 0):
+                print("Train on", k, " examples.")
+                acc = evaluate(X, y, meta_model.m, meta_model.forward_pass)
+                train_accuracies.append(acc)
+                print("Train Accuracy: {0:.4f}".format(acc))
 
-            test_acc, pred_y_test = evaluate(X_test, y_test, meta_model.m, meta_model.forward_pass)
-            test_accuracies.append(test_acc)
-            print("Test Accuracy: {0:.4f}".format(test_acc))
+                test_acc = evaluate(X_test, y_test, meta_model.m, meta_model.forward_pass)
+                test_accuracies.append(test_acc)
+                print("Test Accuracy: {0:.4f}".format(test_acc))
 
-            # Store a sample of outputs and labels.
-            sample_sz = 100
-            train_idx = np.random.choice(len(y), sample_sz, replace=False)
-            all_true_y += y[train_idx]
-            all_pred_y_train += pred_y_train[train_idx]
-            if X_test is not None:
-                test_idx = np.random.choice(len(y_test), sample_sz, replace=False)
-                all_pred_y_test += pred_y_test[test_idx]
+            if k % 10000 == 0:
+                meta_model.step_sz *= decay
 
-    # Some data to plot and return.
-    all_true_y = np.array(all_true_y, dtype=np.int32)
-    all_pred_y_train = np.array(all_pred_y_train, dtype=np.int32)
-    all_pred_y_test = np.array(all_pred_y_test, dtype=np.int32)
-    other_stats = (all_true_y, all_pred_y_train, all_pred_y_test)
-    plot_output_stats(all_true_y, all_pred_y_train, all_pred_y_test)
-
-    return train_accuracies, test_accuracies, other_stats
+    return train_accuracies, test_accuracies
 
 
-def train_local_rule(X, y, meta_model, rule_epochs, epochs, batch, lr=1e-2, X_test=None, y_test=None, verbose=False):
-    '''
-    Meta-learns a set of plasticity rules on the given dataset.
+'''
     If fixed_rule == True, we only run GD on input layer and keep rule fixed
     Otherwise, apply GD to both input layer and local learning rule.
-    '''
+'''
+def train_local_rule(X, y, meta_model, rule_epochs, epochs, batch, lr = 1e-2, X_test = None, y_test = None, verbose = False):
     meta_model.double()
 
-    optimizer = optim.Adam(meta_model.parameters(), lr=lr, weight_decay=0.01)
+    optimizer = optim.Adam(meta_model.parameters(), lr=lr, weight_decay = 0.01)
 
     sz = len(X)
 
-    # Stats to keep track of.
     running_loss = []
-    all_train_acc = []
-    all_test_acc = []
-    all_true_y = []
-    all_pred_y_train = []
-    all_pred_y_test = []
-
     print("Starting Train")
-    # For each rule epoch...
     for epoch in range(1, rule_epochs + 1):
-        # Re-shuffle the data
         X, y = shuffle(X, y)
-        if X_test is not None:
-            X_test, y_test = shuffle(X_test, y_test)
 
         print('Outer epoch ', epoch)
 
         cur_losses = []
         train_accuracies = []
         test_accuracies = []
-
-        # For each batch of samples...
         for k in range(sz // batch):
-
             optimizer.zero_grad()
 
-            inputs_numpy = X[k*batch:(k+1)*batch, :]
-            labels_numpy = y[k*batch:(k+1)*batch]
-            inputs = torch.from_numpy(inputs_numpy).double()
-            labels = torch.from_numpy(labels_numpy).long()
+            inputs = X[k*batch:(k+1)*batch,:]
+            labels = y[k*batch:(k+1)*batch]
+            inputs = torch.from_numpy(inputs).double()
+            labels = torch.from_numpy(labels).long()
 
             loss = meta_model(inputs, labels, epochs, batch)
             cur_losses.append(loss.item())
@@ -143,68 +77,36 @@ def train_local_rule(X, y, meta_model, rule_epochs, epochs, batch, lr=1e-2, X_te
             optimizer.step()
 
         if verbose or epoch == rule_epochs:
-            acc, pred_y_train = evaluate(X, y, meta_model.m, meta_model.forward_pass)
+            acc = evaluate(X, y, meta_model.m, meta_model.forward_pass)
             train_accuracies.append(acc)
             print("Train Accuracy: {0:.4f}".format(acc))
-            
             if not (X_test is None):
-                test_acc, pred_y_test = evaluate(X_test, y_test, meta_model.m, meta_model.forward_pass)
+                test_acc = evaluate(X_test, y_test, meta_model.m, meta_model.forward_pass)
                 test_accuracies.append(test_acc)
                 print("Test Accuracy: {0:.4f}".format(test_acc))
 
-            # Store a sample of outputs and labels.
-            for i in range(batch):
-                all_true_y.append(y[i])
-                all_pred_y_train.append(pred_y_train[i])
-                if not (X_test is None):
-                    all_pred_y_test.append(pred_y_test[i])
-
         loss = np.mean(cur_losses)
         running_loss.append(loss.item())
-        # print("LOSS:", np.mean(running_loss))
-        print("Current loss:", loss.item())
-        print("Mean loss so far:", np.mean(running_loss))
+        print("LOSS:", np.mean(running_loss))
 
-        all_train_acc.append(train_accuracies)
-        all_test_acc.append(test_accuracies)
+    return running_loss, train_accuracies, test_accuracies
 
-    # Some data to plot and return.
-    all_true_y = np.array(all_true_y, dtype=np.int32)
-    all_pred_y_train = np.array(all_pred_y_train, dtype=np.int32)
-    all_pred_y_test = np.array(all_pred_y_test, dtype=np.int32)
-    other_stats = (all_true_y, all_pred_y_train, all_pred_y_test)
-    plot_output_stats(all_true_y, all_pred_y_train, all_pred_y_test)
-
-    return running_loss, all_train_acc, all_test_acc, other_stats
-
-
-def train_vanilla(X, y, model, epochs, batch, lr=1e-2):
-    '''
-    Trains a network using gradient descent (no plasticity rules involved).
-    '''
+def train_vanilla(X, y, model, epochs, batch, lr = 1e-2):
+    X, y = shuffle(X, y)
 
     model.double()
-    optimizer = optim.Adam(model.parameters(), lr=lr)
+    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay = 0.01)
 
     sz = len(X)
     criterion = nn.CrossEntropyLoss()
 
-    print("INITIAL ACCURACY")
-    acc, pred_y = evaluate(X, y, model.m, model)
-    print("epoch 0", "Accuracy: {0:.4f}".format(acc))
-
-    total_samples = 0
-    samples = [total_samples]
-    accuracies = [acc]
-
     running_loss = []
     for epoch in range(1, epochs + 1):
-        X, y = shuffle(X, y)
 
         cur_losses = []
         for k in range(sz//batch):
 
-            inputs = X[k*batch:(k+1)*batch, :]
+            inputs = X[k*batch:(k+1)*batch,:]
             labels = y[k*batch:(k+1)*batch]
 
             inputs = torch.from_numpy(inputs).double()
@@ -212,7 +114,7 @@ def train_vanilla(X, y, model, epochs, batch, lr=1e-2):
 
             optimizer.zero_grad()
 
-            outputs = model(inputs)
+            outputs = model.forward_pass(inputs)
 
             loss = criterion(outputs, labels)
             loss.backward()
@@ -220,21 +122,14 @@ def train_vanilla(X, y, model, epochs, batch, lr=1e-2):
 
             cur_losses.append(loss.item())
 
-            total_samples += batch
-            if total_samples % 1000 == 0:
-                samples.append(total_samples)
-                acc, pred_y = evaluate(X, y, model.m, model)
-                accuracies.append(acc)
-
         running_loss.append(np.mean(cur_losses))
         if epoch % 1 == 0:
             print("Evaluating")
-            acc, pred_y = evaluate(X, y, model.m, model)
-            print("epoch ", epoch, "Loss: {0:.4f}".format(
-                running_loss[-1]), "Accuracy: {0:.4f}".format(acc))
+            acc = evaluate(X, y, model.m, model.forward_pass)
+            print("epoch ", epoch, "Loss: {0:.4f}".format(running_loss[-1]), "Accuracy: {0:.4f}".format(acc))
 
     print('Finished Training')
-    return running_loss, samples, accuracies
+    return running_loss
 
 
 def evaluate(X, y, num_labels, model_forward):
@@ -245,7 +140,7 @@ def evaluate(X, y, num_labels, model_forward):
         correct = 0
 
         outputs = model_forward(torch.from_numpy(X).double())
-        b = np.argmax(outputs, axis=1).numpy()
+        b = np.argmax(outputs, axis = 1).numpy()
 
         for i in range(len(b)):
             total[y[i]] += 1
@@ -256,7 +151,9 @@ def evaluate(X, y, num_labels, model_forward):
 
         acc = correct / sum(total)
 
-        for i in range(num_labels):
-            print("Acc of class", i, ":{0:.4f}".format(ac[i] / (total[i] + 1e-6)))
-    
-    return acc, b
+        # for i in range(num_labels):
+        #     if total[i] > 0:
+        #         print("Acc of class", i, ":{0:.4f}".format(ac[i] / total[i]))
+    return acc
+
+

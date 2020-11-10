@@ -22,7 +22,7 @@ class SingleLayer(nn.Module):
         self.softmax = nn.Softmax(dim=1)
         
     def forward(self, x):        
-        return self.softmax(self.layer(x))
+        return self.layer(x)
     
 
 class ReluNetwork(nn.Module):
