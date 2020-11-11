@@ -189,7 +189,7 @@ class FFBrainNet(nn.Module):
         res = res.scatter(1, indices, topk)
 
         # Record activations (0/1) for plasticity rules
-        activated = torch.zeros_like(x).scatter(1, indices, 1)
+        activated = (res != 0).double()
         self.hidden_layer_activations.append(activated.squeeze())
 
         # Return the capped values
