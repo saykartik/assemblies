@@ -76,11 +76,11 @@ def train_given_rule(X, y, meta_model, verbose=False, X_test=None, y_test=None):
             # Store a sample of outputs and labels.
             sample_sz = 100
             train_idx = np.random.choice(len(y), sample_sz, replace=False)
-            all_true_y += y[train_idx]
-            all_pred_y_train += pred_y_train[train_idx]
+            all_true_y += list(y[train_idx])
+            all_pred_y_train += list(pred_y_train[train_idx])
             if X_test is not None:
                 test_idx = np.random.choice(len(y_test), sample_sz, replace=False)
-                all_pred_y_test += pred_y_test[test_idx]
+                all_pred_y_test += list(pred_y_test[test_idx])
 
     # Some data to plot and return.
     all_true_y = np.array(all_true_y, dtype=np.int32)
@@ -258,5 +258,5 @@ def evaluate(X, y, num_labels, model_forward):
 
         for i in range(num_labels):
             print("Acc of class", i, ":{0:.4f}".format(ac[i] / (total[i] + 1e-6)))
-    
+
     return acc, b
