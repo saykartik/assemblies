@@ -9,14 +9,14 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from FFLocalNetBase import FFLocalNetBase
+from FFLocalNet import FFLocalNet
 from LocalNetBase import Options, UpdateScheme
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-class FFLocalTableNet(FFLocalNetBase):
+class FFLocalTableNet(FFLocalNet):
     """
-    This class extends FFLocalNetBase to add support for local plasticity rules represented as tables of beta values.
+    This class extends FFLocalNet to add support for local plasticity rules represented as tables of beta values.
     It also enables learning of these plasticity rules via gradient descent. When specified, the plasticity rules are
     treated as PyTorch Parameters, and so have autograd enabled and can be optimized.
 

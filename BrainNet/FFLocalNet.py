@@ -13,12 +13,12 @@ from LocalNetBase import Options, UpdateScheme
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-class FFLocalNetBase(FFBrainNet):
+class FFLocalNet(FFBrainNet):
     """
     This class extends FFBrainNet to add support for local plasticity rules, in a manner analogous to LocalNetBase.
     This support includes learning and using plasticity rules for both hidden layers and the output layer.
 
-    An instance of FFLocalNetBase shares the same network structure as FFBrainNet:
+    An instance of FFLocalNet shares the same network structure as FFBrainNet:
         <input layer> [any number of hidden layers] <output layer>, with random inter-layer connectivity
 
     The basic parameterization of the class is the same as FFBrainNet:
