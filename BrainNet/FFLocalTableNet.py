@@ -9,7 +9,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from FFLocalNet import FFLocalNetBase
+from FFLocalNetBase import FFLocalNetBase
 from LocalNetBase import Options, UpdateScheme
 
 # ----------------------------------------------------------------------------------------------------------------------
