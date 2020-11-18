@@ -164,6 +164,7 @@ class FFLocalNet(FFBrainNet):
         """
         Returns a 2D array of plasticity beta values for updating the weight matrix between hidden layers i and i-1
         This array should have shape w[i] x w[i-1]
+        NOTE: It is safe to return entries for non-existent synapses - they will be ignored.
         """
         # Subclasses must implement
         raise NotImplementedError()
@@ -172,6 +173,7 @@ class FFLocalNet(FFBrainNet):
         """
         Returns a 2D array of plasticity beta values for updating the weight matrix between the last hidden layer and the output layer
         This array should have shape m x w[-1]
+        NOTE: It is safe to return entries for non-existent synapses - they will be ignored.
         :param prediction: The predicted label of the sample just processed
         :param label: The true label of the sample just processed
         """
