@@ -6,7 +6,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # Imports
 import torch
-from FFLocalOneBetaModelNet import FFLocalOneBetaModelNet
+from .FFLocalOneBetaModelNet import FFLocalOneBetaModelNet
 
 # ----------------------------------------------------------------------------------------------------------------------
 
