@@ -87,7 +87,7 @@ def epsilon_sensitivity_trend(models, orig_test_data, num_labels):
         accuracy_trend = []
         for epsilon in epsilons:
             X, Y = get_adv_bulk_data(new_data, model, epsilon)
-            acc = evaluate(X, Y, num_labels, model)  # Fix the model vs model.model_forward depending on whats used
+            acc, pred_y = evaluate(X, Y, num_labels, model)  # Fix the model vs model.model_forward depending on whats used
             accuracy_trend.append(acc)
 
         epsilon_performance[model_name] = accuracy_trend
