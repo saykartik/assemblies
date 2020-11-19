@@ -15,7 +15,7 @@ def plot_output_stats(all_true_y, all_pred_y_train, all_pred_y_test):
     plt.hist(all_true_y, bins=np.max(all_true_y)+1)
     plt.xlabel('Value')
     plt.ylabel('Count')
-    plt.title('Frequency of ground truth labels')
+    plt.title('Frequency of ground truth labels on training data')
     plt.show()
 
     plt.figure()
@@ -45,6 +45,11 @@ def train_given_rule(X, y, meta_model, verbose=False, X_test=None, y_test=None):
     all_pred_y_train = []
     all_pred_y_test = []
 
+    X, y = shuffle(X, y)
+    if X_test is not None:
+        X_test, y_test = shuffle(X_test, y_test)
+
+    # For each data point in X...
     batch = 1
     for k in range(len(X)):
         inputs_numpy = X[k*batch:(k+1)*batch, :]
@@ -67,12 +72,15 @@ def train_given_rule(X, y, meta_model, verbose=False, X_test=None, y_test=None):
             test_acc, pred_y_test = evaluate(X_test, y_test, meta_model.m, meta_model.forward_pass)
             test_accuracies.append(test_acc)
             print("Test Accuracy: {0:.4f}".format(test_acc))
-                
-            # Store all outputs and labels.
-            for i in range(batch):
-                all_true_y.append(labels_numpy[i])
-                all_pred_y_train.append(pred_y_train[i])
-                all_pred_y_test.append(pred_y_test[i])
+
+            # Store a sample of outputs and labels.
+            sample_sz = 100
+            train_idx = np.random.choice(len(y), sample_sz, replace=False)
+            all_true_y += list(y[train_idx])
+            all_pred_y_train += list(pred_y_train[train_idx])
+            if X_test is not None:
+                test_idx = np.random.choice(len(y_test), sample_sz, replace=False)
+                all_pred_y_test += list(pred_y_test[test_idx])
 
     # Some data to plot and return.
     all_true_y = np.array(all_true_y, dtype=np.int32)
@@ -105,14 +113,20 @@ def train_local_rule(X, y, meta_model, rule_epochs, epochs, batch, lr=1e-2, X_te
     all_pred_y_test = []
 
     print("Starting Train")
+    # For each rule epoch...
     for epoch in range(1, rule_epochs + 1):
+        # Re-shuffle the data
         X, y = shuffle(X, y)
+        if X_test is not None:
+            X_test, y_test = shuffle(X_test, y_test)
 
         print('Outer epoch ', epoch)
 
         cur_losses = []
         train_accuracies = []
         test_accuracies = []
+
+        # For each batch of samples...
         for k in range(sz // batch):
 
             optimizer.zero_grad()
@@ -137,10 +151,10 @@ def train_local_rule(X, y, meta_model, rule_epochs, epochs, batch, lr=1e-2, X_te
                 test_acc, pred_y_test = evaluate(X_test, y_test, meta_model.m, meta_model.forward_pass)
                 test_accuracies.append(test_acc)
                 print("Test Accuracy: {0:.4f}".format(test_acc))
-                
-            # Store all outputs and labels.
+
+            # Store a sample of outputs and labels.
             for i in range(batch):
-                all_true_y.append(labels_numpy[i])
+                all_true_y.append(y[i])
                 all_pred_y_train.append(pred_y_train[i])
                 if not (X_test is None):
                     all_pred_y_test.append(pred_y_test[i])
@@ -168,7 +182,6 @@ def train_vanilla(X, y, model, epochs, batch, lr=1e-2):
     '''
     Trains a network using gradient descent (no plasticity rules involved).
     '''
-    X, y = shuffle(X, y)
 
     model.double()
     optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -180,8 +193,13 @@ def train_vanilla(X, y, model, epochs, batch, lr=1e-2):
     acc, pred_y = evaluate(X, y, model.m, model)
     print("epoch 0", "Accuracy: {0:.4f}".format(acc))
 
+    total_samples = 0
+    samples = [total_samples]
+    accuracies = [acc]
+
     running_loss = []
     for epoch in range(1, epochs + 1):
+        X, y = shuffle(X, y)
 
         cur_losses = []
         for k in range(sz//batch):
@@ -202,6 +220,12 @@ def train_vanilla(X, y, model, epochs, batch, lr=1e-2):
 
             cur_losses.append(loss.item())
 
+            total_samples += batch
+            if total_samples % 1000 == 0:
+                samples.append(total_samples)
+                acc, pred_y = evaluate(X, y, model.m, model)
+                accuracies.append(acc)
+
         running_loss.append(np.mean(cur_losses))
         if epoch % 1 == 0:
             print("Evaluating")
@@ -210,7 +234,7 @@ def train_vanilla(X, y, model, epochs, batch, lr=1e-2):
                 running_loss[-1]), "Accuracy: {0:.4f}".format(acc))
 
     print('Finished Training')
-    return running_loss
+    return running_loss, samples, accuracies
 
 
 def evaluate(X, y, num_labels, model_forward):
@@ -234,5 +258,5 @@ def evaluate(X, y, num_labels, model_forward):
 
         for i in range(num_labels):
             print("Acc of class", i, ":{0:.4f}".format(ac[i] / (total[i] + 1e-6)))
-    
+
     return acc, b

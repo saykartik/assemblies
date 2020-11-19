@@ -143,11 +143,16 @@ class FFBrainNet(nn.Module):
         # Prepare to record the hidden layer (capped) activations during a forward pass
         self.hidden_layer_activations = []
 
-        # self.input = x.clone()    Not sure why this is needed in BrainNet.  Must understand their forward pass...
+        # This is used in BrainNet to update the hidden vector h during RNN propagation.
+        # According to the paper, h is updated as: h <- cap(ReLU(W.h + A.x))
+        # where W is the weight matrix of the RNN and A is the weight matrix for the input layer.
+        # In other words, every update involves the original activations (stimulus?).
+        # self.input = x.clone()
 
+        # We'll perform a more traditional feed-forward propagation of the input:
         # For each layer in the network...
         for weights, connectivity, bias, cap in zip(self.hidden_weights, self.hidden_layers, self.hidden_biases, self.cap):
-            # First weight matrix & graph is stored separately
+            # First weight matrix & graph are stored separately
             if weights is None: weights = self.input_weights
             if connectivity is None: connectivity = self.input_layer
 
@@ -189,7 +194,7 @@ class FFBrainNet(nn.Module):
         res = res.scatter(1, indices, topk)
 
         # Record activations (0/1) for plasticity rules
-        activated = torch.zeros_like(x).scatter(1, indices, 1)
+        activated = (res != 0).double()
         self.hidden_layer_activations.append(activated.squeeze())
 
         # Return the capped values
@@ -203,9 +208,9 @@ class FFBrainNet(nn.Module):
 
     def reset_weights(self, additive=False, input_rule=False, output_rule=False):
         """
-        Reset the network's weights
-        Only called via forward() in plasticity rule-based models
-        Weights are reset for each batch during learning of the plasticity rules
+        Called via forward() in plasticity rule-based models
+        Resets the weights and biases of the network's plasticity-based layers
+        Weights & biases are reset for each batch during meta-learning of the plasticity rules
         """
 
         # Always reset hidden layer weights
