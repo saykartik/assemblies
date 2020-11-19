@@ -31,8 +31,8 @@ class FFLocalModelNet(FFLocalNet):
         # Create plasticity rules, stored as regression models
 
         # Hidden layer rule
-        input_sz, hidden_layer_sz = self.hidden_layer_rule_size()
-        hidden_rule_model = Regression(input_sz, hidden_layer_sz, 1)   # Single output is the Beta plasticity value
+        input_sz, hidden_layer_sz, output_sz = self.hidden_layer_rule_size()
+        hidden_rule_model = Regression(input_sz, hidden_layer_sz, output_sz)
 
         # Initialize the rule model's params
         # NOTE: How best to initialize the Regression params may require further exploration
@@ -49,8 +49,8 @@ class FFLocalModelNet(FFLocalNet):
 
 
         # Output layer rule
-        input_sz, hidden_layer_sz = self.output_rule_size()
-        output_rule_model = Regression(input_sz, hidden_layer_sz, 1)     # Single output is the Beta plasticity value
+        input_sz, hidden_layer_sz, output_sz = self.output_rule_size()
+        output_rule_model = Regression(input_sz, hidden_layer_sz, output_sz)
 
         # Initialize the rule model's params
         # NOTE: How best to initialize the Regression params may require further exploration
@@ -72,7 +72,7 @@ class FFLocalModelNet(FFLocalNet):
     def hidden_layer_rule_size(self):
         """
         Return a tuple indicating the layer sizes (widths) of the hidden-layer ANN plasticity rule.
-        Return value should be (input_layer_width, hidden_layer_width).
+        Return value should be (input_layer_width, hidden_layer_width, output_layer_width).
         """
         # Subclasses must implement
         raise NotImplementedError()
@@ -80,7 +80,26 @@ class FFLocalModelNet(FFLocalNet):
     def output_rule_size(self):
         """
         Return a tuple indicating the layer sizes (widths) of the output layer ANN plasticity rule.
-        Return value should be (input_layer_width, hidden_layer_width).
+        Return value should be (input_layer_width, hidden_layer_width, output_layer_width).
+        """
+        # Subclasses must implement
+        raise NotImplementedError()
+
+    def hidden_layer_rule_feature_arrays(self, h):
+        """
+        Return a list of feature arrays (one per input feature of the hidden-layer rule ANN) for hidden-layer h.
+        See documentation in the subclasses for specific expectations regarding the shape and contents of the arrays.
+        """
+        # Subclasses must implement
+        raise NotImplementedError()
+
+    def output_rule_feature_arrays(self, prediction, label):
+        """
+        Return a list of feature arrays (one per input feature of the output rule ANN) for the output layer.
+        See documentation in the subclasses for specific expectations regarding the shape and contents of the arrays.
+
+        :param prediction: The predicted label of the sample just processed
+        :param label: The true label of the sample just processed
         """
         # Subclasses must implement
         raise NotImplementedError()

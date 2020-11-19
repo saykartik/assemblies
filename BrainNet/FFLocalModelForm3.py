@@ -10,24 +10,24 @@ from FFLocalOneBetaModelNet import FFLocalOneBetaModelNet
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-class FFLocalModelForm1(FFLocalOneBetaModelNet):
+class FFLocalModelForm3(FFLocalOneBetaModelNet):
     """
     This class implements the following ANN-based plasticity rules:
 
-    The hidden-layer rule used to update a synapse between nodes i and j is an ANN with 2+<hidden-layer width> input features:
-        <node i fired?>, <node j fired?>, <all firings of presynaptic layer as {1,-1,0}>
+    The hidden-layer rule used to update a synapse between nodes i and j is an ANN with 1+<hidden-layer width> input features:
+        <node j fired?>, <all firings of presynaptic layer as {1,-1,0}>
     The output is a single Beta value used to update the specified synapse.
 
-    The output rule used to update a synapse between node i and label j is an ANN with 2+<hidden-layer width> input features:
-        <node i fired?>, <node j is the sample's label?>, <all firings of presynaptic layer as {1,-1,0}>
+    The output rule used to update a synapse between node i and label j is an ANN with 1+<hidden-layer width> input features:
+        <node j is the sample's label?>, <all firings of presynaptic layer as {1,-1,0}>
     The output is a single Beta value used to update the specified synapse.
     """
 
     def hidden_layer_rule_size(self):
-        return 2+self.w[0], 20, 1      # Input size, Hidden layer size, Output size
+        return 1+self.w[0], 20, 1      # Input size, Hidden layer size, Output size
 
     def output_rule_size(self):
-        return 2+self.w[0], 20, 1      # Input size, Hidden layer size, Output size
+        return 1+self.w[0], 20, 1      # Input size, Hidden layer size, Output size
 
 
     def hidden_layer_rule_feature_arrays(self, h):
@@ -41,11 +41,7 @@ class FFLocalModelForm1(FFLocalOneBetaModelNet):
         postsyn_acts = self.hidden_layer_activations[h]
         connectivity = self.hidden_layers[h]
 
-        # First feature is 1 if the presynaptic neuron fired, 0 otherwise
-        presyn_act_matrix = presyn_acts.repeat(postsyn_width, 1)  # Repeat as rows for each postsynaptic neuron
-        feature_arrays.append(presyn_act_matrix)
-
-        # Second feature is 1 if the postsynaptic neuron fired, 0 otherwise
+        # First feature is 1 if the postsynaptic neuron fired, 0 otherwise
         postsyn_act_matrix = postsyn_acts.view(-1, 1).repeat(1, presyn_width)  # Repeat as cols for each presynaptic neuron
         feature_arrays.append(postsyn_act_matrix)
 
@@ -82,11 +78,7 @@ class FFLocalModelForm1(FFLocalOneBetaModelNet):
         postsyn_width = self.m
         presyn_acts = self.hidden_layer_activations[-1]
 
-        # First feature is 1 if the presynaptic neuron fired, 0 otherwise
-        presyn_act_matrix = presyn_acts.repeat(postsyn_width, 1)  # Repeat as rows for each postsynaptic neuron
-        feature_arrays.append(presyn_act_matrix)
-
-        # Second feature is 1 if the postsynaptic neuron is the label, 0 otherwise
+        # First feature is 1 if the postsynaptic neuron is the label, 0 otherwise
         postsyn_label_matrix = torch.zeros(postsyn_width, presyn_width)
         postsyn_label_matrix[label] = 1
         feature_arrays.append(postsyn_label_matrix)
