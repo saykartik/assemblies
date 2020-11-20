@@ -10,7 +10,7 @@ from .FFLocalOneBetaModelNet import FFLocalOneBetaModelNet
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-class FFLocalModelHebb(FFLocalOneBetaModelNet):
+class FFLocalOneModel_Hebb(FFLocalOneBetaModelNet):
     """
     This class implements the following ANN-based plasticity rules:
 

@@ -10,7 +10,7 @@ from .FFLocalOneBetaModelNet import FFLocalOneBetaModelNet
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-class FFLocalModelForm1(FFLocalOneBetaModelNet):
+class FFLocalOneModel_PrePostAll(FFLocalOneBetaModelNet):
     """
     This class implements the following ANN-based plasticity rules:
 

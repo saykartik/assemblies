@@ -6,28 +6,28 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # Imports
 import torch
-from .FFLocalOneBetaModelNet import FFLocalOneBetaModelNet
+from .FFLocalAllBetasModelNet import FFLocalAllBetasModelNet
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-class FFLocalModelForm3(FFLocalOneBetaModelNet):
+class FFLocalAllModel_PostAll(FFLocalAllBetasModelNet):
     """
     This class implements the following ANN-based plasticity rules:
 
-    The hidden-layer rule used to update a synapse between nodes i and j is an ANN with 1+<hidden-layer width> input features:
+    The hidden-layer rule used to update ALL synapses coming in to postsynaptic neuron j is an ANN with 1+<hidden-layer width> input features:
         <node j fired?>, <all firings of presynaptic layer as {1,-1,0}>
-    The output is a single Beta value used to update the specified synapse.
+    The output is a list of Beta values, one per (possible) incoming synapse.
 
-    The output rule used to update a synapse between node i and label j is an ANN with 1+<hidden-layer width> input features:
+    The output rule used to update ALL synapses coming in to label j is an ANN with 1+<hidden-layer width> input features:
         <node j is the sample's label?>, <all firings of presynaptic layer as {1,-1,0}>
-    The output is a single Beta value used to update the specified synapse.
+    The output is a list of Beta values, one per (possible) incoming synapse.
     """
 
     def hidden_layer_rule_size(self):
-        return 1+self.w[0], 20, 1      # Input size, Hidden layer size, Output size
+        return 1+self.w[0], 20, self.w[0]      # Input size, Hidden layer size, Output size
 
     def output_rule_size(self):
-        return 1+self.w[0], 20, 1      # Input size, Hidden layer size, Output size
+        return 1+self.w[0], 20, self.w[0]      # Input size, Hidden layer size, Output size
 
 
     def hidden_layer_rule_feature_arrays(self, h):
@@ -42,28 +42,27 @@ class FFLocalModelForm3(FFLocalOneBetaModelNet):
         connectivity = self.hidden_layers[h]
 
         # First feature is 1 if the postsynaptic neuron fired, 0 otherwise
-        postsyn_act_matrix = postsyn_acts.view(-1, 1).repeat(1, presyn_width)  # Repeat as cols for each presynaptic neuron
-        feature_arrays.append(postsyn_act_matrix)
+        feature_arrays.append(postsyn_acts)
 
         # Remaining features are the activations for each presynaptic neuron:
         #    1 if the neuron fired, -1 if it didn't fire, 0 if it is not connected to the postsynaptic neuron
         # For each presynaptic neuron...
         for i in range(presyn_width):
-            # Form a matrix for the firing of presynaptic neuron i
+            # Form an array for the firing of presynaptic neuron i
             # 1 if the neuron fired, -1 if it didn't fire
-            act_matrix = torch.ones(postsyn_width, presyn_width)
+            presyn_fired = torch.ones(postsyn_width)
             if not presyn_acts[i]:
-                act_matrix = -act_matrix
+                presyn_fired = -presyn_fired
 
             # Determine whether presynaptic neuron i is connected to each of the postsynaptic neurons
             # This is the ith column of the connectivity matrix
-            i_connectivity = connectivity[:, i:i+1]
+            i_connectivity = connectivity[:, i]
 
             # Zero out the activations if there is no connection to the postsynaptic neuron
-            act_matrix = act_matrix * i_connectivity  # Broadcasts across cols of a act_matrix
+            presyn_fired = presyn_fired * i_connectivity  # Element-wise multiply
 
             # Add this feature to our list
-            feature_arrays.append(act_matrix)
+            feature_arrays.append(presyn_fired)
 
         # Return the feature arrays
         return feature_arrays
@@ -79,29 +78,29 @@ class FFLocalModelForm3(FFLocalOneBetaModelNet):
         presyn_acts = self.hidden_layer_activations[-1]
 
         # First feature is 1 if the postsynaptic neuron is the label, 0 otherwise
-        postsyn_label_matrix = torch.zeros(postsyn_width, presyn_width)
-        postsyn_label_matrix[label] = 1
-        feature_arrays.append(postsyn_label_matrix)
+        postsyn_labels = torch.zeros(postsyn_width)
+        postsyn_labels[label] = 1
+        feature_arrays.append(postsyn_labels)
 
         # Remaining features are the activations for each presynaptic neuron:
         #    1 if the neuron fired, -1 if it didn't fire, 0 if it is not connected to the postsynaptic neuron
         # For each presynaptic neuron...
         for i in range(presyn_width):
-            # Form a matrix for the firing of presynaptic neuron i
+            # Form an array for the firing of presynaptic neuron i
             # 1 if the neuron fired, -1 if it didn't fire
-            act_matrix = torch.ones(postsyn_width, presyn_width)
+            presyn_fired = torch.ones(postsyn_width)
             if not presyn_acts[i]:
-                act_matrix = -act_matrix
+                presyn_fired = -presyn_fired
 
             # Determine whether presynaptic neuron i is connected to each of the postsynaptic neurons
             # This is the ith column of the output_layer connectivity matrix
-            connectivity = self.output_layer[:, i:i+1]
+            connectivity = self.output_layer[:, i]
 
             # Zero out the activations if there is no connection to the postsynaptic neuron
-            act_matrix = act_matrix * connectivity      # Broadcasts across cols of a act_matrix
+            presyn_fired = presyn_fired * connectivity      # Element-wise multiply
 
             # Add this feature to our list
-            feature_arrays.append(act_matrix)
+            feature_arrays.append(presyn_fired)
 
         # Return the feature arrays
         return feature_arrays

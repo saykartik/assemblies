@@ -10,7 +10,7 @@ from .FFLocalTableNet import FFLocalTableNet
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-class FFLocalTableHebb(FFLocalTableNet):
+class FFLocalTable_Hebb(FFLocalTableNet):
     """
     This class implements the following table-based plasticity rules:
 
