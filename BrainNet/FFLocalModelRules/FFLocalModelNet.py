@@ -2,7 +2,7 @@
 # COMS 6998_008 Fall 2020: Computation and the Brain
 # Final Project
 # Group Members: Kartik Balasubramaniam (kb3127), Brett Karopczyc (bjk2161), Vincent Lin (vcl2122), Basile Van Hoorick (bv2279)
-# Author: Brett Karopczyc
+# Author(s): Brett Karopczyc
 # ----------------------------------------------------------------------------------------------------------------------
 # Imports
 from FFLocalNet import FFLocalNet
