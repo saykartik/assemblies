@@ -88,13 +88,12 @@ def metalearn_rules(X, y, meta_model, num_rule_epochs, num_epochs, batch_size, l
 
         # Loop over small batches of samples.
         for k in range(num_batches):
-            optimizer.zero_grad()
-
             inputs_numpy = X[k*batch_size:(k+1)*batch_size]
             labels_numpy = y[k*batch_size:(k+1)*batch_size]
             inputs = torch.from_numpy(inputs_numpy).double()
             labels = torch.from_numpy(labels_numpy).long()
             total_samples += batch_size
+            optimizer.zero_grad()
 
             # Run inner epochs and update weights according to current rule.
             # NOTE: This resets the weights first.
@@ -251,9 +250,10 @@ def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_r
             inputs = torch.from_numpy(inputs_numpy).double()
             labels = torch.from_numpy(labels_numpy).long()
             total_samples += batch_size
+            optimizer.zero_grad()
 
             if vanilla:
-                optimizer.zero_grad()
+                # Backprop through all layers.
                 outputs = model(inputs)
                 loss = criterion(outputs, labels)
                 loss.backward()
@@ -264,7 +264,13 @@ def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_r
                     continue_ = False  # Reset weights.
                 else:
                     continue_ = True
+                
+                # Update selected weights using rules.
                 loss = model(inputs, labels, 1, batch_size, continue_=continue_)
+                
+                # Update remaining weights using backprop.
+                loss.backward()
+                optimizer.step()
 
             cur_losses.append(loss.item())
 
