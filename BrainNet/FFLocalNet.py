@@ -68,7 +68,7 @@ class FFLocalNet(FFBrainNet):
         prediction = torch.argmax(probs[0])
 
         # Don't update weights if we're only updating on misclassified examples, and our prediction is correct
-        if self.update_scheme.update_misclassified and prediction == label:
+        if self.update_scheme.update_misclassified_only and prediction == label:
             return
 
         # Define our plasticity update rule
@@ -130,7 +130,7 @@ class FFLocalNet(FFBrainNet):
             self.reset_weights(additive=self.options.additive_rule, input_rule=self.options.use_input_rule, output_rule=self.options.use_output_rule)
             self.double()
 
-        # For each epoch...
+        # For each inner epoch...
         for epoch in range(1, epochs + 1):
             # For each sample...
             for x, ell in zip(inputs, labels):

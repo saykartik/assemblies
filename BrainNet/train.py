@@ -5,14 +5,15 @@ import torch.nn as nn
 import torch.optim as optim
 from sklearn.utils import shuffle
 from network import BrainNet
+from tqdm import tqdm
 
 
 np.set_printoptions(precision=4)
 
 
-def plot_output_stats(all_true_y, all_pred_y_train, all_pred_y_test):
+def plot_output_stats(all_true_y_train, all_pred_y_train, all_true_y_test, all_pred_y_test):
     plt.figure()
-    plt.hist(all_true_y, bins=np.max(all_true_y)+1)
+    plt.hist(all_true_y_train, bins=np.max(all_true_y_train)+1)
     plt.xlabel('Value')
     plt.ylabel('Count')
     plt.title('Frequency of ground truth labels on training data')
@@ -34,210 +35,303 @@ def plot_output_stats(all_true_y, all_pred_y_train, all_pred_y_test):
         plt.show()
 
 
-def train_given_rule(X, y, meta_model, verbose=False, X_test=None, y_test=None):
+def metalearn_rules(X, y, meta_model, num_rule_epochs, num_epochs, batch_size, learn_rate=1e-2,
+                    X_test=None, y_test=None, verbose=False):
     '''
-    Trains a network using a fixed set of plasticity rules.
-    '''
-    all_rules = []
-    test_accuracies = []
-    train_accuracies = []
-    all_true_y = []
-    all_pred_y_train = []
-    all_pred_y_test = []
+    Meta-learns a set of plasticity rules on the given dataset and network.
+    We apply gradient descent on the rules (and some layers, if desired).
 
-    X, y = shuffle(X, y)
-    if X_test is not None:
-        X_test, y_test = shuffle(X_test, y_test)
+    Args:
+        X: 2D numpy array with training data.
+        y: 1D numpy array with training labels.
+        meta_model: Instance of model to meta-train with an implementation of forward().
+        num_rule_epochs: Number of outer epochs to meta-learn for.
+        num_epochs: Number of inner epochs to measure the loss produced by rules for.
+        batch_size: Batch size for meta-learning. Evaluation is done with all data points at once.
+        verbose: If True, print loss & accuracy stats per outer epoch.
+            If False, only summarize at the end.
 
-    # For each data point in X...
-    batch = 1
-    for k in range(len(X)):
-        inputs_numpy = X[k*batch:(k+1)*batch, :]
-        labels_numpy = y[k*batch:(k+1)*batch]
-        inputs = torch.from_numpy(inputs_numpy).double()
-        labels = torch.from_numpy(labels_numpy).long()
-
-        if k == 0:
-            continue_ = False
-        else:
-            continue_ = True
-        loss = meta_model(inputs, labels, 1, batch, continue_=continue_)
-
-        if k == len(X) - 1 or (verbose and k % 500 == 0):
-            print("Train on", k, " examples.")
-            acc, pred_y_train = evaluate(X, y, meta_model.m, meta_model.forward_pass)
-            train_accuracies.append(acc)
-            print("Train Accuracy: {0:.4f}".format(acc))
-
-            test_acc, pred_y_test = evaluate(X_test, y_test, meta_model.m, meta_model.forward_pass)
-            test_accuracies.append(test_acc)
-            print("Test Accuracy: {0:.4f}".format(test_acc))
-
-            # Store a sample of outputs and labels.
-            sample_sz = 100
-            train_idx = np.random.choice(len(y), sample_sz, replace=False)
-            all_true_y += list(y[train_idx])
-            all_pred_y_train += list(pred_y_train[train_idx])
-            if X_test is not None:
-                test_idx = np.random.choice(len(y_test), sample_sz, replace=False)
-                all_pred_y_test += list(pred_y_test[test_idx])
-
-    # Some data to plot and return.
-    all_true_y = np.array(all_true_y, dtype=np.int32)
-    all_pred_y_train = np.array(all_pred_y_train, dtype=np.int32)
-    all_pred_y_test = np.array(all_pred_y_test, dtype=np.int32)
-    other_stats = (all_true_y, all_pred_y_train, all_pred_y_test)
-    plot_output_stats(all_true_y, all_pred_y_train, all_pred_y_test)
-
-    return train_accuracies, test_accuracies, other_stats
-
-
-def train_local_rule(X, y, meta_model, rule_epochs, epochs, batch, lr=1e-2, X_test=None, y_test=None, verbose=False):
-    '''
-    Meta-learns a set of plasticity rules on the given dataset.
-    If fixed_rule == True, we only run GD on input layer and keep rule fixed
-    Otherwise, apply GD to both input layer and local learning rule.
+    Returns:
+        (all_losses, all_train_acc, all_test_acc, sample_counts, other_stats).
+        all_losses: (num_rule_epochs) numpy array with mean upstream training loss per outer epoch.
+        all_train_acc: (num_rule_epochs) numpy array with downstream training accuracy per outer epoch.
+        all_test_acc: (num_rule_epochs) numpy array with downstream test accuracy per outer epoch.
+        sample_counts: Cumulative number of training elements seen at every measurement.
+        other_stats: (all_true_y_train, all_pred_y_train, all_true_y_test, all_pred_y_test)
+            where each element is a (len(X)) numpy array representing the last outer epoch.
     '''
     meta_model.double()
+    optimizer = optim.Adam(meta_model.parameters(), lr=learn_rate, weight_decay=0.01)
 
-    optimizer = optim.Adam(meta_model.parameters(), lr=lr, weight_decay=0.01)
-
-    sz = len(X)
+    data_count = len(X)
+    num_batches = data_count // batch_size
 
     # Stats to keep track of.
-    running_loss = []
+    total_samples = 0  # Counter for easy plotting.
+    all_losses = []
     all_train_acc = []
     all_test_acc = []
-    all_true_y = []
-    all_pred_y_train = []
-    all_pred_y_test = []
+    sample_counts = []
 
-    print("Starting Train")
-    # For each rule epoch...
-    for epoch in range(1, rule_epochs + 1):
-        # Re-shuffle the data
+    if verbose:
+        print("Start meta-learning over outer (rule) epochs...")
+
+    # For each outer (rule) epoch...
+    for outer_epoch in tqdm(range(1, num_rule_epochs + 1)):
+        # Re-shuffle the data.
         X, y = shuffle(X, y)
         if X_test is not None:
             X_test, y_test = shuffle(X_test, y_test)
 
-        print('Outer epoch ', epoch)
-
+        # print('Outer (rule) epoch ', outer_epoch)
         cur_losses = []
-        train_accuracies = []
-        test_accuracies = []
 
-        # For each batch of samples...
-        for k in range(sz // batch):
-
+        # Loop over small batches of samples.
+        for k in range(num_batches):
             optimizer.zero_grad()
 
-            inputs_numpy = X[k*batch:(k+1)*batch, :]
-            labels_numpy = y[k*batch:(k+1)*batch]
+            inputs_numpy = X[k*batch_size:(k+1)*batch_size]
+            labels_numpy = y[k*batch_size:(k+1)*batch_size]
             inputs = torch.from_numpy(inputs_numpy).double()
             labels = torch.from_numpy(labels_numpy).long()
+            total_samples += batch_size
 
-            loss = meta_model(inputs, labels, epochs, batch)
+            # Run inner epochs and update weights according to current rule.
+            # NOTE: This resets the weights first.
+            loss = meta_model(inputs, labels, num_epochs, batch_size)
             cur_losses.append(loss.item())
 
+            # Update rules to reduce loss.
             loss.backward()
             optimizer.step()
 
-        if verbose or epoch == rule_epochs:
-            acc, pred_y_train = evaluate(X, y, meta_model.m, meta_model.forward_pass)
-            train_accuracies.append(acc)
-            print("Train Accuracy: {0:.4f}".format(acc))
-            
-            if not (X_test is None):
-                test_acc, pred_y_test = evaluate(X_test, y_test, meta_model.m, meta_model.forward_pass)
-                test_accuracies.append(test_acc)
-                print("Test Accuracy: {0:.4f}".format(test_acc))
+        # Evaluate current performance over training data.
+        train_acc, pred_y_train = evaluate(
+            X, y, meta_model.m, meta_model.forward_pass, verbose=verbose)
+        if verbose:
+            print("Train accuracy: {0:.4f}".format(train_acc))
 
-            # Store a sample of outputs and labels.
-            for i in range(batch):
-                all_true_y.append(y[i])
-                all_pred_y_train.append(pred_y_train[i])
-                if not (X_test is None):
-                    all_pred_y_test.append(pred_y_test[i])
+        # Evaluate current performance over test data.
+        if X_test is not None:
+            test_acc, pred_y_test = evaluate(
+                X_test, y_test, meta_model.m, meta_model.forward_pass, verbose=verbose)
+            if verbose:
+                print("Test accuracy: {0:.4f}".format(test_acc))
+        else:
+            test_acc, pred_y_test = -1.0, None
 
+        # Update loss.
         loss = np.mean(cur_losses)
-        running_loss.append(loss.item())
-        # print("LOSS:", np.mean(running_loss))
-        print("Current loss:", loss.item())
-        print("Mean loss so far:", np.mean(running_loss))
+        all_losses.append(loss)
+        if verbose:
+            print("Current loss: {0:.4f}".format(loss.item()))
+            print("Mean loss so far: {0:.4f}".format(np.mean(all_losses)))
 
-        all_train_acc.append(train_accuracies)
-        all_test_acc.append(test_accuracies)
+        all_train_acc.append(train_acc)
+        all_test_acc.append(test_acc)
+        sample_counts.append(total_samples)
 
-    # Some data to plot and return.
-    all_true_y = np.array(all_true_y, dtype=np.int32)
-    all_pred_y_train = np.array(all_pred_y_train, dtype=np.int32)
-    all_pred_y_test = np.array(all_pred_y_test, dtype=np.int32)
-    other_stats = (all_true_y, all_pred_y_train, all_pred_y_test)
-    plot_output_stats(all_true_y, all_pred_y_train, all_pred_y_test)
+    # Store all outputs and labels from the last outer epoch.
+    all_losses = np.array(all_losses)
+    all_train_acc = np.array(all_train_acc)
+    all_true_y_train = np.array(y, dtype=np.int32)
+    all_pred_y_train = np.array(pred_y_train, dtype=np.int32)
+    if X_test is not None:
+        all_test_acc = np.array(all_test_acc)
+        all_true_y_test = np.array(y_test, dtype=np.int32)
+        all_pred_y_test = np.array(pred_y_test, dtype=np.int32)
+    else:
+        all_test_acc = all_true_y_test = all_pred_y_test = np.empty(0)
+    sample_counts = np.array(sample_counts, dtype=np.int32)
 
-    return running_loss, all_train_acc, all_test_acc, other_stats
+    # Plot and return.
+    other_stats = (all_true_y_train, all_pred_y_train, all_true_y_test, all_pred_y_test)
+    if verbose:
+        plot_output_stats(*other_stats)
+
+    print("Last loss: {0:.4f}".format(all_losses[-1]))
+    print("Last train accuracy: {0:.4f}".format(all_train_acc[-1]))
+    print("Last test accuracy: {0:.4f}".format(all_test_acc[-1]))
+
+    return (all_losses, all_train_acc, all_test_acc, sample_counts, other_stats)
 
 
-def train_vanilla(X, y, model, epochs, batch, lr=1e-2):
+def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_rate=1e-2,
+                     X_test=None, y_test=None, verbose=False, stats_interval=500):
     '''
-    Trains a network using gradient descent (no plasticity rules involved).
-    '''
+    If vanilla is False:
+    Trains the network weights for one epoch using a fixed set of plasticity rules.
+    Gradient descent is applied on some layers only, depending on the model's options.
+    NOTE: The arguments batch_size and learn_rate are unused for rule-based learning.
 
+    If vanilla is True:
+    Trains a network using gradient descent (no plasticity rules involved) for several epochs.
+    NOTE: Ensure that the model contains torch Parameters,
+    otherwise the weights will not change!
+
+    Args:
+        X: 2D numpy array with training data.
+        y: 1D numpy array with training labels.
+        model: Either a custom rule-based network or a regular torch module instance.
+        verbose: If True, print loss & accuracy stats every stats_interval data points.
+            If False, only summarize at the end.
+        stats_interval: If > 0, number of samples to process in-between subsequent
+            accuracy measurements (also called sub-epochs).
+
+    Returns:
+        (all_losses, all_train_acc, all_test_acc, sample_counts, other_stats).
+        all_losses: (num_epochs * num_batches / stats_interval) numpy array with mean training loss
+            per sub-epoch evaluation.
+        all_train_acc: (num_epochs * num_batches / stats_interval) numpy array with mean training accuracy
+            per sub-epoch evaluation.
+        all_test_acc: (num_epochs * num_batches / stats_interval) numpy array with mean test accuracy
+            per sub-epoch evaluation.
+        sample_counts: Cumulative number of training elements seen at every measurement.
+        other_stats: (all_true_y_train, all_pred_y_train, all_true_y_test, all_pred_y_test)
+            where each element is a (num_batches) numpy array representing every sample
+            from the last sub-epoch evaluation.
+
+    NOTE: The returned stats are always evaluated over the *whole* datasets,
+    even though they are calculated multiple times per training epoch.
+    '''
     model.double()
-    optimizer = optim.Adam(model.parameters(), lr=lr)
-
-    sz = len(X)
+    optimizer = optim.Adam(model.parameters(), lr=learn_rate)
     criterion = nn.CrossEntropyLoss()
 
-    print("INITIAL ACCURACY")
-    acc, pred_y = evaluate(X, y, model.m, model)
-    print("epoch 0", "Accuracy: {0:.4f}".format(acc))
+    data_count = len(X)
+    if vanilla:
+        num_batches = data_count // batch_size
+    else:
+        batch_size = 1
+        num_batches = data_count
 
-    total_samples = 0
-    samples = [total_samples]
-    accuracies = [acc]
+    if vanilla:
+        train_acc, _ = evaluate(X, y, model.m, model, verbose=verbose)
+        print("INITIAL train accuracy: {0:.4f}".format(train_acc))
+        if X_test is not None:
+            test_acc, _ = evaluate(X_test, y_test, model.m, model, verbose=verbose)
+            print("INITIAL test accuracy: {0:.4f}".format(test_acc))
+        else:
+            test_acc = -1.0
+    else:
+        train_acc, _ = evaluate(X, y, model.m, model.forward_pass, verbose=verbose)
+        print("INITIAL train accuracy: {0:.4f}".format(train_acc))
+        if X_test is not None:
+            test_acc, _ = evaluate(X_test, y_test, model.m, model.forward_pass, verbose=verbose)
+            print("INITIAL test accuracy: {0:.4f}".format(test_acc))
+        else:
+            test_acc = -1.0
 
-    running_loss = []
-    for epoch in range(1, epochs + 1):
+    # Stats to keep track of.
+    total_samples = 0  # Counter for easy plotting.
+    all_losses = [0.0]
+    all_train_acc = [train_acc]
+    all_test_acc = [test_acc]
+    sample_counts = [total_samples]
+
+    for epoch in range(1, num_epochs + 1):
+        print(f'Epoch {epoch} / {num_epochs} ...')
+
+        # Re-shuffle the data.
         X, y = shuffle(X, y)
-
+        if X_test is not None:
+            X_test, y_test = shuffle(X_test, y_test)
+            
         cur_losses = []
-        for k in range(sz//batch):
 
-            inputs = X[k*batch:(k+1)*batch, :]
-            labels = y[k*batch:(k+1)*batch]
+        # Loop over all batches within this epoch.
+        for k in tqdm(range(num_batches)):
+            inputs_numpy = X[k*batch_size:(k+1)*batch_size]
+            labels_numpy = y[k*batch_size:(k+1)*batch_size]
+            inputs = torch.from_numpy(inputs_numpy).double()
+            labels = torch.from_numpy(labels_numpy).long()
+            total_samples += batch_size
 
-            inputs = torch.from_numpy(inputs).double()
-            labels = torch.from_numpy(labels).long()
+            if vanilla:
+                optimizer.zero_grad()
+                outputs = model(inputs)
+                loss = criterion(outputs, labels)
+                loss.backward()
+                optimizer.step()
 
-            optimizer.zero_grad()
-
-            outputs = model(inputs)
-
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
+            else:
+                if k == 0:
+                    continue_ = False
+                else:
+                    continue_ = True
+                loss = model(inputs, labels, 1, batch_size, continue_=continue_)
 
             cur_losses.append(loss.item())
 
-            total_samples += batch
-            if total_samples % 1000 == 0:
-                samples.append(total_samples)
-                acc, pred_y = evaluate(X, y, model.m, model)
-                accuracies.append(acc)
+            # Periodically calculate stats.
+            if k == num_batches - 1 or (stats_interval > 0 and
+                                        total_samples % stats_interval < batch_size):
+                
+                # Evaluate current performance over training data.
+                if vanilla:
+                    train_acc, pred_y_train = evaluate(X, y, model.m, model, verbose=verbose)
+                else:
+                    train_acc, pred_y_train = evaluate(
+                        X, y, model.m, model.forward_pass, verbose=verbose)
+                all_train_acc.append(train_acc)
+                if verbose:
+                    print(f'Step {k+1} / {num_batches}')
+                    print("Train accuracy: {0:.4f}".format(train_acc))
 
-        running_loss.append(np.mean(cur_losses))
-        if epoch % 1 == 0:
-            print("Evaluating")
-            acc, pred_y = evaluate(X, y, model.m, model)
-            print("epoch ", epoch, "Loss: {0:.4f}".format(
-                running_loss[-1]), "Accuracy: {0:.4f}".format(acc))
+                # Evaluate current performance over test data.
+                if X_test is not None:
+                    if vanilla:
+                        test_acc, pred_y_test = evaluate(
+                            X_test, y_test, model.m, model, verbose=verbose)
+                    else:
+                        test_acc, pred_y_test = evaluate(
+                            X_test, y_test, model.m, model.forward_pass, verbose=verbose)
+                    all_test_acc.append(test_acc)
+                    if verbose:
+                        print("Test accuracy: {0:.4f}".format(test_acc))
 
-    print('Finished Training')
-    return running_loss, samples, accuracies
+                # Update loss.
+                loss = np.mean(cur_losses)
+                all_losses.append(loss)
+                if verbose:
+                    print("Current loss: {0:.4f}".format(loss.item()))
+                    print("Mean loss so far: {0:.4f}".format(np.mean(all_losses)))
+
+                sample_counts.append(total_samples)
+                cur_losses = []
+
+        print()
+
+    # Store all outputs and labels from the last sub-epoch evaluation.
+    all_losses = np.array(all_losses)
+    all_train_acc = np.array(all_train_acc)
+    all_true_y_train = np.array(y, dtype=np.int32)
+    all_pred_y_train = np.array(pred_y_train, dtype=np.int32)
+    if X_test is not None:
+        all_test_acc = np.array(all_test_acc)
+        all_true_y_test = np.array(y_test, dtype=np.int32)
+        all_pred_y_test = np.array(pred_y_test, dtype=np.int32)
+    else:
+        all_test_acc = all_true_y_test = all_pred_y_test = np.empty(0)
+    sample_counts = np.array(sample_counts, dtype=np.int32)
+
+    # Plot and return.
+    other_stats = (all_true_y_train, all_pred_y_train, all_true_y_test, all_pred_y_test)
+    if verbose:
+        plot_output_stats(*other_stats)
+
+    print("Last loss: {0:.4f}".format(all_losses[-1]))
+    print("Last train accuracy: {0:.4f}".format(all_train_acc[-1]))
+    print("Last test accuracy: {0:.4f}".format(all_test_acc[-1]))
+
+    return (all_losses, all_train_acc, all_test_acc, sample_counts, other_stats)
 
 
-def evaluate(X, y, num_labels, model_forward):
+def evaluate(X, y, num_labels, model_forward, verbose=True):
+    '''
+    X, y: One batch of inputs and ground truths.
+    Returns mean accuracy and array of predictions for this batch (i.e. dataset).
+    '''
     ac = [0] * num_labels
     total = [0] * num_labels
     with torch.no_grad():
@@ -256,7 +350,8 @@ def evaluate(X, y, num_labels, model_forward):
 
         acc = correct / sum(total)
 
-        for i in range(num_labels):
-            print("Acc of class", i, ":{0:.4f}".format(ac[i] / (total[i] + 1e-6)))
+        if verbose:
+            for i in range(num_labels):
+                print("Acc of class", i, ": {0:.4f}".format(ac[i] / (total[i] + 1e-6)))
 
     return acc, b

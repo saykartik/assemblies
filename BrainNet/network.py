@@ -252,7 +252,7 @@ class LocalNetOutputMultiRuleModel(LocalNetBase):
     def update_weights(self, x, label):
         prediction = torch.argmax(x[0])
 
-        if self.update_scheme.update_misclassified and prediction == label:
+        if self.update_scheme.update_misclassified_only and prediction == label:
             return
 
         def mult(a, b):
@@ -293,7 +293,7 @@ class LocalNetMetaRule(LocalNetBase):
     def update_weights(self, x, label):
         prediction = torch.argmax(x[0])
 
-        if self.update_scheme.update_misclassified and prediction == label:
+        if self.update_scheme.update_misclassified_only and prediction == label:
             return
 
         def mult(a, b):

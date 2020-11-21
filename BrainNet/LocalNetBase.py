@@ -30,11 +30,11 @@ class UpdateScheme:
             self, 
             cross_entropy_loss = True, 
             mse_loss = False, 
-            update_misclassified = True, 
+            update_misclassified_only = True, 
             update_all_edges = False):
         self.cross_entropy_loss = cross_entropy_loss 
         self.mse_loss = mse_loss 
-        self.update_misclassified = update_misclassified 
+        self.update_misclassified_only = update_misclassified_only 
         self.update_all_edges = update_all_edges
 
 # do not instantiate this class directly. Use something from the network.py file. ex. LocalNet.
@@ -91,7 +91,7 @@ class LocalNetBase(BrainNet):
         prob = probs[0]
         prediction = torch.argmax(prob)
 
-        if self.update_scheme.update_misclassified and prediction == label: 
+        if self.update_scheme.update_misclassified_only and prediction == label: 
             return 
 
         def mult(a, b): 

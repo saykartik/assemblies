@@ -220,6 +220,8 @@ class FFBrainNet(nn.Module):
         """
         assert(not(self.full_gd), "All weights are torch Parameters, it does not make sense to suddenly replace GD with rules.")
 
+        # print('reset_weights() called...')
+
         # Always reset hidden layer weights
         self.hidden_weights = []
         self.hidden_biases = []

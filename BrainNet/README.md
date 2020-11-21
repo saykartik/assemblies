@@ -53,7 +53,7 @@ class UpdateScheme:
     def __init__(self,
             cross_entropy_loss = True,      # By default, uses cross entropy loss.
             mse_loss = False,
-            update_misclassified = True,    # By default only update weights when we misclassify.
+            update_misclassified_only = True,    # By default only update weights when we misclassify.
             update_all_edges = False):      # For output rule, update all edges,
                                             # or only edge to correct and predicted label.
         ...
