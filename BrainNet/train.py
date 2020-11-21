@@ -206,6 +206,7 @@ def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_r
         num_batches = data_count
 
     if vanilla:
+        # Backprop-based.
         train_acc, _ = evaluate(X, y, model.m, model, verbose=verbose)
         print("INITIAL train accuracy: {0:.4f}".format(train_acc))
         if X_test is not None:
@@ -213,8 +214,11 @@ def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_r
             print("INITIAL test accuracy: {0:.4f}".format(test_acc))
         else:
             test_acc = -1.0
+    
     else:
-        # NOTE: The weights are NOT yet reset, but will be upon the first training iteration.
+        # Rule-based; reset weights first by calling forward once.
+        loss = model(torch.from_numpy(inputs[0:1]).double(),
+                     torch.from_numpy(labels[0:1]).long(), 1, 1, continue_=False)
         train_acc, _ = evaluate(X, y, model.m, model.forward_pass, verbose=verbose)
         print("INITIAL train accuracy: {0:.4f}".format(train_acc))
         if X_test is not None:
