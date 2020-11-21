@@ -214,6 +214,7 @@ def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_r
         else:
             test_acc = -1.0
     else:
+        # NOTE: The weights are NOT yet reset, but will be upon the first training iteration.
         train_acc, _ = evaluate(X, y, model.m, model.forward_pass, verbose=verbose)
         print("INITIAL train accuracy: {0:.4f}".format(train_acc))
         if X_test is not None:
@@ -256,7 +257,7 @@ def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_r
 
             else:
                 if k == 0:
-                    continue_ = False
+                    continue_ = False  # Reset weights.
                 else:
                     continue_ = True
                 loss = model(inputs, labels, 1, batch_size, continue_=continue_)
