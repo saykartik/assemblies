@@ -218,9 +218,7 @@ class FFBrainNet(nn.Module):
         Weights & biases are reset for each batch during meta-learning of the plasticity rules.
         NOTE: There is some code duplication with the constructor here.
         """
-        assert(not(self.full_gd), "All weights are torch Parameters, it does not make sense to suddenly replace GD with rules.")
-
-        # print('reset_weights() called...')
+        assert not self.full_gd, "All weights are torch Parameters, it does not make sense to suddenly replace GD with rules."
 
         # Always reset hidden layer weights
         self.hidden_weights = []
@@ -239,12 +237,12 @@ class FFBrainNet(nn.Module):
 
         # Input Layer
         if input_rule:
-            assert(not(self.gd_input), "input_weights is a torch Parameter, it does not make sense to suddenly replace GD with rules.")
+            assert not self.gd_input, "input_weights is a torch Parameter, it does not make sense to suddenly replace GD with rules."
             self.input_weights = torch.zeros(self.w[0], self.n)
 
         # Output Layer
         if output_rule:
-            assert(not(self.gd_output), "output_weights is a torch Parameter, it does not make sense to suddenly replace GD with rules.")
+            assert not self.gd_output, "output_weights is a torch Parameter, it does not make sense to suddenly replace GD with rules."
             if additive:
                 self.output_weights = torch.zeros(self.m, self.w[-1])
             else:
