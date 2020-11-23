@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 
 from FFBrainNet import FFBrainNet
+from FFLocalPlasticityRules.PlasticityRule import PlasticityRule
 from LocalNetBase import Options, UpdateScheme
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -29,10 +30,15 @@ class FFLocalNet(FFBrainNet):
         p = inter-layer connectivity probability OR array of length l indicating connectivity probability between each
             hidden layer and the preceding layer. NOTE: The output layer is *fully-connected* with the last hidden layer.
         cap = max number of nodes firing at the hidden layers OR array of length l indicating the cap per hidden layer
+        hl_rules = common PlasticityRule to use for all hidden layers OR array of length (l-1) containing the
+                   PlasticityRules to use for updating the weight matrices between the l hidden layers.
+                   NOTE: The same PlasticityRule object can be included multiple times in the list to share the same
+                   rule for multiple layers. Must be supplied when use_graph_rule=True.
+        output_rule = the PlasticityRule to use for the output layer. Must be supplied when use_output_rule=True.
 
     In addition, the Options and UpdateScheme structures from LocalNetBase were reused to control how the class is trained.
     """
-    def __init__(self, n, m, l, w, p, cap, options=Options(), update_scheme=UpdateScheme()):
+    def __init__(self, n, m, l, w, p, cap, hl_rules=None, output_rule=None, options=Options(), update_scheme=UpdateScheme()):
         super().__init__(n=n,
                          m=m,
                          l=l,
@@ -42,10 +48,74 @@ class FFLocalNet(FFBrainNet):
                          gd_input=options.gd_input,
                          gd_output=options.gd_output)
 
+        # Make sure the options are consistent
+        assert not options.use_input_rule, "There is currently no support for an input layer plasticity rule"
+        assert options.gd_input, "If we don't use GD on the input weights, they will never be learned"
+
+        assert options.use_graph_rule == (l > 1), "A graph rule should be used iff there is more than 1 hidden layer"
+        assert options.use_graph_rule or not options.gd_graph_rule, "gd_graph_rule is not applicable when use_graph_rule is False"
+
+        assert options.use_output_rule or not options.gd_output_rule, "gd_output_rule is not applicable when use_output_rule is False"
+        assert options.use_output_rule != options.gd_output, "use_output_rule and gd_output should be mutually exclusive"
+
         # Store additional params
         self.options = options
         self.update_scheme = update_scheme
         self.step_sz = 0.01
+
+        # Define our plasticity rules:
+
+        # Hidden Layer rules
+        # Make sure a hidden-layer rule was supplied if needed
+        hl_rules_supplied = bool(hl_rules)
+        hl_rule_needed = options.use_graph_rule and (l > 1)
+        assert hl_rules_supplied == hl_rule_needed, "The hl_rules parameter does not agree with the other parameters"
+
+        # Convert to a list if a single rule was supplied
+        if not hl_rules_supplied:
+            hl_rules = [None]   # First hidden layer never uses a plasticity rule
+        elif isinstance(hl_rules, PlasticityRule):
+            hl_rules = [None] + [hl_rules] * (l-1)     # Common plasticity rule for all hidden layers
+        else:
+            assert len(hl_rules) == (l-1), "hl_rules list must have length (l-1)"
+            hl_rules = [None] + hl_rules
+
+        # Initialize the rules
+        unique_rules = set(hl_rules) - {None}
+        for rule in unique_rules:
+            # Assign basic params
+            rule.ff_net = self
+            rule.isOutputRule = False
+
+            # Ask the rule to initialize itself
+            layers = [i for i, r in enumerate(hl_rules) if r == rule]
+            rule.initialize(layers=layers)
+
+        # Store these rules
+        self.hidden_layer_rules = hl_rules
+
+
+        # Output rule
+        # Make sure an output rule was supplied if needed
+        output_rule_supplied = bool(output_rule)
+        assert output_rule_supplied == options.use_output_rule, "The output_rule parameter does not agree with options.use_output_rule"
+
+        # Initialize the rule
+        if output_rule_supplied:
+            # Make sure the output rule is distinct from all hidden-layer rules
+            assert output_rule not in hl_rules, "The output rule must be distinct from all hidden-layer rules"
+
+            # Assign basic params
+            output_rule.ff_net = self
+            output_rule.isOutputRule = True
+
+            # Ask the rule to initialize itself
+            output_rule.initialize()
+        else:
+            output_rule = None
+
+        # Store the rule
+        self.output_rule = output_rule
 
 
     def copy_graph(self, net, input_layer=False, graph=False, output_layer=False):
@@ -87,7 +157,8 @@ class FFLocalNet(FFBrainNet):
             # For each postsynaptic hidden layer...
             for i in range(1, self.l):
                 # Determine the plasticity beta values to use for each entry in the weight matrix
-                betas = self.hidden_layer_betas(i)
+                rule = self.hidden_layer_rules[i]
+                betas = rule.hidden_layer_betas(i)
 
                 # Use beta=0 (no update) for any synapse that doesn't exist according to the connectivity graph
                 connectivity = self.hidden_layers[i]
@@ -100,7 +171,7 @@ class FFLocalNet(FFBrainNet):
             # Update output weights according to the plasticity rule
 
             # Determine the plasticity beta values to use for each entry in the output weight matrix
-            betas = self.output_betas(prediction, label)
+            betas = self.output_rule.output_betas(prediction, label)
 
             # Use beta=0 (no update) for any synapse that doesn't exist according to the connectivity graph
             connectivity = self.output_layer
@@ -156,28 +227,5 @@ class FFLocalNet(FFBrainNet):
 
         # Return the loss on the output
         return loss
-
-# ----------------------------------------------------------------------------------------------------------------------
-# ----------------------------------  Methods to be implemented by subclasses  -----------------------------------------
-
-    def hidden_layer_betas(self, i):
-        """
-        Returns a 2D array of plasticity beta values for updating the weight matrix between hidden layers i and i-1
-        This array should have shape w[i] x w[i-1]
-        NOTE: It is safe to return entries for non-existent synapses - they will be ignored.
-        """
-        # Subclasses must implement
-        raise NotImplementedError()
-
-    def output_betas(self, prediction, label):
-        """
-        Returns a 2D array of plasticity beta values for updating the weight matrix between the last hidden layer and the output layer
-        This array should have shape m x w[-1]
-        NOTE: It is safe to return entries for non-existent synapses - they will be ignored.
-        :param prediction: The predicted label of the sample just processed
-        :param label: The true label of the sample just processed
-        """
-        # Subclasses must implement
-        raise NotImplementedError()
 
 # ----------------------------------------------------------------------------------------------------------------------

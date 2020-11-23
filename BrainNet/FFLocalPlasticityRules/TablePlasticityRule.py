@@ -9,73 +9,57 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from FFLocalNet import FFLocalNet
-from LocalNetBase import Options, UpdateScheme
+from .PlasticityRule import PlasticityRule
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-class FFLocalTableNet(FFLocalNet):
+class TablePlasticityRule(PlasticityRule):
     """
-    This class extends FFLocalNet to add support for local plasticity rules represented as tables of beta values.
+    This class extends PlasticityRule to add support for rules represented as tables of beta values.
     It also enables learning of these plasticity rules via gradient descent. When specified, the plasticity rules are
     treated as PyTorch Parameters, and so have autograd enabled and can be optimized.
-
-    NOTE: This class currently implements a SINGLE hidden-layer plasticity rule that applies to ALL hidden layer weight updates.
-    Further development is required to increase the number of table-based plasticity rules supported (e.g. one per layer).
     """
-    def __init__(self, n, m, l, w, p, cap, options=Options(), update_scheme=UpdateScheme()):
-        super().__init__(n=n,
-                         m=m,
-                         l=l,
-                         w=w,
-                         p=p,
-                         cap=cap,
-                         options=options,
-                         update_scheme=update_scheme)
 
-        # Create plasticity rules, stored as flattened arrays of beta values
-        # Hidden layer rule
-        hidden_layer_rule_len = np.prod(self.hidden_layer_rule_shape())
-        self.hidden_layer_rule = torch.randn(hidden_layer_rule_len)
+    def initialize(self, layers=None):
+        # Create the plasticity rule, stored as a flattened array of beta values
+        rule_len = int(np.prod(self.rule_shape()))
+        self.rule = torch.randn(rule_len)
 
-        # Output layer rule
-        output_rule_len = np.prod(self.output_rule_shape())
-        self.output_rule = torch.zeros(output_rule_len)
-
-        # If necessary, convert plasticity rules to Torch 'Parameters' so they're treated as model params and
+        # If necessary, convert the plasticity rule to a PyTorch 'Parameter' so it's treated as a model parameter and
         # updated via an optimizer.step()
-        if self.options.gd_graph_rule:
-            self.hidden_layer_rule = nn.Parameter(self.hidden_layer_rule)
-        if self.options.gd_output_rule:
-            self.output_rule = nn.Parameter(self.output_rule)
+        opts = self.ff_net.options
+        rule_is_learnable = opts.gd_output_rule if self.isOutputRule else opts.gd_graph_rule
+        if rule_is_learnable:
+            # Convert the Tensor to a Parameter
+            self.rule = nn.Parameter(self.rule)
+
+            # Register this Parameter with our parent network
+            param_name = 'output_rule_param' if self.isOutputRule else f"hl_rule_param_{','.join(str(l) for l in layers)}"
+            self.ff_net.register_parameter(param_name, self.rule)
 
 
-    def get_hidden_layer_rule(self):
-        """Return the hidden layer plasticity rule in its native shape"""
-        return self.hidden_layer_rule.clone().detach().view(self.hidden_layer_rule_shape())
+    def get_rule(self):
+        """Return the plasticity rule in its native shape"""
+        return self.rule.clone().detach().view(self.rule_shape())
 
-    def get_output_rule(self):
-        """Return the output layer plasticity rule in its native shape"""
-        return self.output_rule.clone().detach().view(self.output_rule_shape())
+    def set_rule(self, rule):
+        """Use a provided table of beta values as the rule contents"""
+        if isinstance(rule, torch.Tensor):
+            self.rule = rule.clone().detach().flatten().double()
+        else:
+            self.rule = torch.tensor(rule).flatten().double()
 
-    def set_hidden_layer_rule(self, rule):
-        self.hidden_layer_rule = torch.tensor(rule).flatten().double()
-
-    def set_output_rule(self, rule):
-        self.output_rule = rule.clone().detach().flatten().double()
-
-
-    def hidden_layer_betas(self, i):
-        """Return the plasticity beta values for updating the weight matrix between hidden layers i and i-1"""
+    def hidden_layer_betas(self, h):
+        """Return the plasticity beta values for updating the weight matrix between hidden layers h and h-1"""
 
         # Get an index array for each dimension of the plasticity rule (corresponding to the weight matrix)
-        index_arrays = self.hidden_layer_rule_index_arrays(i)
+        index_arrays = self.hidden_layer_rule_index_arrays(h)
 
         # Convert these dimension indexes into scalar indexes into the flattened hidden-layer rule
-        rule_idx = np.ravel_multi_index(index_arrays, self.hidden_layer_rule_shape())
+        rule_idx = np.ravel_multi_index(index_arrays, self.rule_shape())
 
         # Return the corresponding array of beta values
-        return self.hidden_layer_rule[torch.tensor(rule_idx)]
+        return self.rule[torch.tensor(rule_idx)]
 
     def output_betas(self, prediction, label):
         """Return the plasticity beta values for updating the weight matrix between the last hidden layer and the output layer"""
@@ -84,37 +68,28 @@ class FFLocalTableNet(FFLocalNet):
         index_arrays = self.output_rule_index_arrays(prediction, label)
 
         # Convert these dimension indexes into scalar indexes into the flattened output rule
-        rule_idx = np.ravel_multi_index(index_arrays, self.output_rule_shape())
+        rule_idx = np.ravel_multi_index(index_arrays, self.rule_shape())
 
         # Return the corresponding array of beta values
-        return self.output_rule[torch.tensor(rule_idx)]
+        return self.rule[torch.tensor(rule_idx)]
 
 # ----------------------------------------------------------------------------------------------------------------------
 # ----------------------------------  Methods to be implemented by subclasses  -----------------------------------------
 
-    def hidden_layer_rule_shape(self):
+    def rule_shape(self):
         """
-        Return a tuple indicating the 'native' shape of the hidden-layer plasticity rule.
+        Return a tuple indicating the 'native' shape of the plasticity rule.
         This is determined by what the rule is a function of (e.g. presynaptic neuron fired?, Count of incoming neurons that fired, etc.)
         The shape is used when retrieving the rule, but the rule is stored internally as a flattened array.
         """
         # Subclasses must implement
         raise NotImplementedError()
 
-    def output_rule_shape(self):
+    def hidden_layer_rule_index_arrays(self, h):
         """
-        Return a tuple indicating the 'native' shape of the output layer plasticity rule.
-        This is determined by what the rule is a function of (e.g. presynaptic neuron fired?, Count of incoming neurons that fired, etc.)
-        The shape is used when retrieving the rule, but the rule is stored internally as a flattened array.
-        """
-        # Subclasses must implement
-        raise NotImplementedError()
-
-    def hidden_layer_rule_index_arrays(self, i):
-        """
-        Return a tuple of index arrays (one per dimension of the hidden-layer rule) for each pair of nodes in hidden-layers i and i-1.
+        Return a tuple of index arrays (one per dimension of the rule) for each pair of nodes in hidden-layers h and h-1.
         Each array returned should:
-            - have shape w[i] X w[i-1]
+            - have shape w[h] X w[h-1]
             - be of type 'long'
             - contain each synapse's index for the specific rule dimension
             - entry (j,i) is the value for the synapse between postsynaptic neuron j and presynaptic neuron i
@@ -125,7 +100,7 @@ class FFLocalTableNet(FFLocalNet):
 
     def output_rule_index_arrays(self, prediction, label):
         """
-        Return a tuple of index arrays (one per dimension of the output rule) for each pair of nodes in the last hidden layer and the output layer.
+        Return a tuple of index arrays (one per dimension of the rule) for each pair of nodes in the last hidden layer and the output layer.
         Each array returned should:
             - have shape m X w[-1]
             - be of type 'long'

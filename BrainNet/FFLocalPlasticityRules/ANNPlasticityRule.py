@@ -5,81 +5,49 @@
 # Author(s): Brett Karopczyc
 # ----------------------------------------------------------------------------------------------------------------------
 # Imports
-from FFLocalNet import FFLocalNet
-from LocalNetBase import Options, UpdateScheme
+from .PlasticityRule import PlasticityRule
 from GDNetworks import Regression
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-class FFLocalModelNet(FFLocalNet):
+class ANNPlasticityRule(PlasticityRule):
     """
-    This class extends FFLocalNet to add support for local plasticity rules represented as small neural networks.
-
-    NOTE: This class currently implements a SINGLE hidden-layer plasticity rule that applies to ALL hidden layer weight updates.
-    Further development is required to increase the number of ANN-based plasticity rules supported (e.g. one per layer).
+    This class extends PlasticityRule to add support for rules represented as small artificial neural networks.
     """
-    def __init__(self, n, m, l, w, p, cap, options=Options(), update_scheme=UpdateScheme()):
-        super().__init__(n=n,
-                         m=m,
-                         l=l,
-                         w=w,
-                         p=p,
-                         cap=cap,
-                         options=options,
-                         update_scheme=update_scheme)
 
-        # Create plasticity rules, stored as regression models
-
-        # Hidden layer rule
-        input_sz, hidden_layer_sz, output_sz = self.hidden_layer_rule_size()
-        hidden_rule_model = Regression(input_sz, hidden_layer_sz, output_sz)
+    def initialize(self, layers=None):
+        # Create the plasticity rule, stored as a Regression model
+        input_sz, hidden_layer_sz, output_sz = self.rule_size()
+        rule_model = Regression(input_sz, hidden_layer_sz, output_sz)
+        self.rule = rule_model
 
         # Initialize the rule model's params
         # NOTE: How best to initialize the Regression params may require further exploration
-        # hidden_rule_model.hidden.weight.data.zero_()
-        hidden_rule_model.hidden.bias.data.zero_()
-        # hidden_rule_model.predict.weight.data.zero_()
-        hidden_rule_model.predict.bias.data.zero_()
+        # rule_model.hidden.weight.data.zero_()
+        rule_model.hidden.bias.data.zero_()
+        # rule_model.predict.weight.data.zero_()
+        rule_model.predict.bias.data.zero_()
 
-        # If we're not learning this plasticity rule via GD, disable autograd
-        if not self.options.gd_graph_rule:
-            hidden_rule_model.requires_grad_(False)
-
-        self.hidden_layer_rule = hidden_rule_model
-
-
-        # Output layer rule
-        input_sz, hidden_layer_sz, output_sz = self.output_rule_size()
-        output_rule_model = Regression(input_sz, hidden_layer_sz, output_sz)
-
-        # Initialize the rule model's params
-        # NOTE: How best to initialize the Regression params may require further exploration
-        # output_rule_model.hidden.weight.data.zero_()
-        output_rule_model.hidden.bias.data.zero_()
-        # output_rule_model.predict.weight.data.zero_()
-        output_rule_model.predict.bias.data.zero_()
-
-        # If we're not learning this plasticity rule via GD, disable autograd
-        if not self.options.gd_output_rule:
-            output_rule_model.requires_grad_(False)
-
-        self.output_rule = output_rule_model
+        # Configure the rule depending on whether we're going to learn it via GD or not:
+        # either register the Regression model as a sub-module of our parent FFLocalNet,
+        # or disable autograd on it entirely.
+        opts = self.ff_net.options
+        rule_is_learnable = opts.gd_output_rule if self.isOutputRule else opts.gd_graph_rule
+        if rule_is_learnable:
+            # Register this module with our parent network
+            module_name = 'output_rule_module' if self.isOutputRule else f"hl_rule_module_{','.join(str(l) for l in layers)}"
+            self.ff_net.add_module(module_name, rule_model)
+        else:
+            # If we're not learning this plasticity rule via GD, disable autograd
+            rule_model.requires_grad_(False)
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 # ----------------------------------  Methods to be implemented by subclasses  -----------------------------------------
 
-    def hidden_layer_rule_size(self):
+    def rule_size(self):
         """
-        Return a tuple indicating the layer sizes (widths) of the hidden-layer ANN plasticity rule.
-        Return value should be (input_layer_width, hidden_layer_width, output_layer_width).
-        """
-        # Subclasses must implement
-        raise NotImplementedError()
-
-    def output_rule_size(self):
-        """
-        Return a tuple indicating the layer sizes (widths) of the output layer ANN plasticity rule.
+        Return a tuple indicating the layer sizes (widths) of the ANN-based plasticity rule.
         Return value should be (input_layer_width, hidden_layer_width, output_layer_width).
         """
         # Subclasses must implement
@@ -87,7 +55,7 @@ class FFLocalModelNet(FFLocalNet):
 
     def hidden_layer_rule_feature_arrays(self, h):
         """
-        Return a list of feature arrays (one per input feature of the hidden-layer rule ANN) for hidden-layer h.
+        Return a list of feature arrays (one per input feature of the rule ANN) for hidden-layer h.
         See documentation in the subclasses for specific expectations regarding the shape and contents of the arrays.
         """
         # Subclasses must implement
@@ -95,7 +63,7 @@ class FFLocalModelNet(FFLocalNet):
 
     def output_rule_feature_arrays(self, prediction, label):
         """
-        Return a list of feature arrays (one per input feature of the output rule ANN) for the output layer.
+        Return a list of feature arrays (one per input feature of the rule ANN) for the output layer.
         See documentation in the subclasses for specific expectations regarding the shape and contents of the arrays.
 
         :param prediction: The predicted label of the sample just processed

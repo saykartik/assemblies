@@ -6,13 +6,13 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # Imports
 import torch
-from .FFLocalModelNet import FFLocalModelNet
+from .ANNPlasticityRule import ANNPlasticityRule
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-class FFLocalOneBetaModelNet(FFLocalModelNet):
+class OneBetaANNPlasticityRule(ANNPlasticityRule):
     """
-    This class extends FFLocalModelNet to implement plasticity-rule ANNs which return a single (per-synapse) Beta value.
+    This class extends ANNPlasticityRule to implement plasticity-rule ANNs which return a single (per-synapse) Beta value.
     i.e. The ANNs output layer has width 1
     """
 
@@ -22,7 +22,7 @@ class FFLocalOneBetaModelNet(FFLocalModelNet):
         feature_arrays = self.hidden_layer_rule_feature_arrays(h)
 
         # We're expecting one array per input feature
-        assert len(feature_arrays) == self.hidden_layer_rule_size()[0]
+        assert len(feature_arrays) == self.rule_size()[0]
 
         # Form the input matrix to the plasticity rule ANN to determine all of the Betas at once:
         #   One row per synapse, columns are the input features
@@ -30,10 +30,10 @@ class FFLocalOneBetaModelNet(FFLocalModelNet):
         input_matrix = torch.stack(input_matrix_cols).T
 
         # Call our plasticity rule ANN to determine all Beta values
-        betas = self.hidden_layer_rule(input_matrix)
+        betas = self.rule(input_matrix)
 
         # Reshape like a weight matrix
-        return betas.reshape(self.w[h], self.w[h-1])
+        return betas.reshape(self.ff_net.w[h], self.ff_net.w[h-1])
 
 
     def output_betas(self, prediction, label):
@@ -42,7 +42,7 @@ class FFLocalOneBetaModelNet(FFLocalModelNet):
         feature_arrays = self.output_rule_feature_arrays(prediction, label)
 
         # We're expecting one array per input feature
-        assert len(feature_arrays) == self.output_rule_size()[0]
+        assert len(feature_arrays) == self.rule_size()[0]
 
         # Form the input matrix to the plasticity rule ANN to determine all of the Betas at once:
         #   One row per synapse, columns are the input features
@@ -50,10 +50,10 @@ class FFLocalOneBetaModelNet(FFLocalModelNet):
         input_matrix = torch.stack(input_matrix_cols).T
 
         # Call our plasticity rule ANN to determine all Beta values
-        betas = self.output_rule(input_matrix)
+        betas = self.rule(input_matrix)
 
         # Reshape like a weight matrix
-        return betas.reshape(self.m, self.w[-1])
+        return betas.reshape(self.ff_net.m, self.ff_net.w[-1])
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -61,7 +61,7 @@ class FFLocalOneBetaModelNet(FFLocalModelNet):
 
     def hidden_layer_rule_feature_arrays(self, h):
         """
-        Return a list of feature arrays (one per input feature of the hidden-layer rule ANN) for each pair of nodes in hidden-layers h and h-1.
+        Return a list of feature arrays (one per input feature of the rule ANN) for each pair of nodes in hidden-layers h and h-1.
         Each array returned should:
             - have shape w[h] X w[h-1]
             - contain each synapse's value for the specific input feature
@@ -73,7 +73,7 @@ class FFLocalOneBetaModelNet(FFLocalModelNet):
 
     def output_rule_feature_arrays(self, prediction, label):
         """
-        Return a list of feature arrays (one per input feature of the output rule ANN) for each pair of nodes in the last hidden layer and the output layer.
+        Return a list of feature arrays (one per input feature of the rule ANN) for each pair of nodes in the last hidden layer and the output layer.
         Each array returned should:
             - have shape m X w[-1]
             - contain each synapse's value for the specific input feature

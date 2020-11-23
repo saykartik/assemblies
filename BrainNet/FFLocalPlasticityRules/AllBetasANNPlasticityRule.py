@@ -6,13 +6,13 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # Imports
 import torch
-from .FFLocalModelNet import FFLocalModelNet
+from .ANNPlasticityRule import ANNPlasticityRule
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-class FFLocalAllBetasModelNet(FFLocalModelNet):
+class AllBetasANNPlasticityRule(ANNPlasticityRule):
     """
-    This class extends FFLocalModelNet to implement plasticity-rule ANNs which return ALL Beta values for a postsynaptic neuron.
+    This class extends ANNPlasticityRule to implement plasticity-rule ANNs which return ALL Beta values for a postsynaptic neuron.
     i.e. The ANNs output layer has width equal to the presynaptic layer
     """
 
@@ -22,14 +22,14 @@ class FFLocalAllBetasModelNet(FFLocalModelNet):
         feature_arrays = self.hidden_layer_rule_feature_arrays(h)
 
         # We're expecting one array per input feature
-        assert len(feature_arrays) == self.hidden_layer_rule_size()[0]
+        assert len(feature_arrays) == self.rule_size()[0]
 
         # Form the input matrix to the plasticity rule ANN to determine all of the Betas at once:
         #   One row per postsynaptic neuron, columns are the input features
         input_matrix = torch.stack(feature_arrays).T
 
         # Call our plasticity rule ANN to determine all Beta values
-        betas = self.hidden_layer_rule(input_matrix)
+        betas = self.rule(input_matrix)
 
         # Return the array of Beta values
         return betas
@@ -41,14 +41,14 @@ class FFLocalAllBetasModelNet(FFLocalModelNet):
         feature_arrays = self.output_rule_feature_arrays(prediction, label)
 
         # We're expecting one array per input feature
-        assert len(feature_arrays) == self.output_rule_size()[0]
+        assert len(feature_arrays) == self.rule_size()[0]
 
         # Form the input matrix to the plasticity rule ANN to determine all of the Betas at once:
         #   One row per postsynaptic neuron, columns are the input features
         input_matrix = torch.stack(feature_arrays).T
 
         # Call our plasticity rule ANN to determine all Beta values
-        betas = self.output_rule(input_matrix)
+        betas = self.rule(input_matrix)
 
         # Return the array of Beta values
         return betas
@@ -59,7 +59,7 @@ class FFLocalAllBetasModelNet(FFLocalModelNet):
 
     def hidden_layer_rule_feature_arrays(self, h):
         """
-        Return a list of feature arrays (one per input feature of the hidden-layer rule ANN) for hidden-layer h.
+        Return a list of feature arrays (one per input feature of the rule ANN) for hidden-layer h.
         Each array returned should:
             - have shape (w[h],)
             - contain each postsynaptic node's value for the specific input feature
@@ -69,7 +69,7 @@ class FFLocalAllBetasModelNet(FFLocalModelNet):
 
     def output_rule_feature_arrays(self, prediction, label):
         """
-        Return a list of feature arrays (one per input feature of the output rule ANN) for the output layer.
+        Return a list of feature arrays (one per input feature of the rule ANN) for the output layer.
         Each array returned should:
             - have shape (m,)
             - contain each label's value for the specific input feature

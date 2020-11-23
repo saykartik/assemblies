@@ -6,38 +6,53 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # Imports
 import torch
-from .FFLocalTableNet import FFLocalTableNet
+from .TablePlasticityRule import TablePlasticityRule
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-class FFLocalTable_PostCount(FFLocalTableNet):
+class TableRule_PostCount(TablePlasticityRule):
     """
-    This class implements the following table-based plasticity rules:
+    This class implements the following table-based plasticity rule:
 
-    The hidden-layer rule used to update a synapse between nodes i and j is a table of size 2 * (cap + 1):
+    The rule used to update a synapse between hidden-layer nodes i and j is a table of size 2 * (cap + 1):
         <node j fired?> * <number of incoming nodes to j that fired>
 
-    The output rule used to update a synapse between node i and label j is a table of size 2 * (cap + 1):
+    The rule used to update a synapse between hidden-layer node i and output label j is a table of size 2 * (cap + 1):
         <node j is the sample's label?> * <number of incoming nodes to j that fired>
 
-    As a result, we currently assume that all hidden layers have the same cap (which determines the size of the common rule)
+    As a result, we require that all layers this rule applies to have the same cap (for the presynaptic layer).
     """
 
-    def hidden_layer_rule_shape(self):
-        return 2, self.cap[0]+1      # Postsyn fired?, Count of incoming nodes that fired
+    def __init__(self):
+        super().__init__()
+        # Define attributes used by this class
+        self.presynaptic_cap = None     # Will be assigned in initialize()
 
-    def output_rule_shape(self):
-        return 2, self.cap[0]+1      # Postsyn is the Label node?, Count of incoming nodes that fired
+    def initialize(self, layers=None):
+        # Determine the common cap of all presynaptic layers
+        if self.isOutputRule:
+            self.presynaptic_cap = self.ff_net.cap[-1]
+        else:
+            caps = {self.ff_net.cap[lay-1] for lay in layers}
+            assert len(caps) == 1, "Caps of presynaptic layers were inconsistent"
+            self.presynaptic_cap = caps.pop()
 
-    def hidden_layer_rule_index_arrays(self, i):
+        # Call up to our super's initialize()
+        super().initialize(layers)
+
+    def rule_shape(self):
+        return 2, self.presynaptic_cap+1      # Postsyn fired/Is Label node?, Count of incoming nodes that fired
+
+    def hidden_layer_rule_index_arrays(self, h):
         """
-        Return index arrays for each dimension of the hidden-layer plasticity rule for the weight matrix between layers i and i-1
+        Return index arrays for each dimension of the plasticity rule for the weight matrix between hidden layers h and h-1
         """
         # Get details of the presynaptic and postsynaptic layers, their connectivity, and their latest firing patterns
-        presyn_width = self.w[i - 1]
-        presyn_acts = self.hidden_layer_activations[i - 1]
-        postsyn_acts = self.hidden_layer_activations[i]
-        connectivity = self.hidden_layers[i]
+        net = self.ff_net
+        presyn_width = net.w[h-1]
+        presyn_acts = net.hidden_layer_activations[h-1]
+        postsyn_acts = net.hidden_layer_activations[h]
+        connectivity = net.hidden_layers[h]
 
         # Rule dimension 0: 1 if the postsynaptic neuron fired, 0 otherwise
         dim0_idx = postsyn_acts.view(-1, 1).repeat(1, presyn_width).long()  # Repeat as cols for each presynaptic neuron
@@ -52,13 +67,14 @@ class FFLocalTable_PostCount(FFLocalTableNet):
 
     def output_rule_index_arrays(self, prediction, label):
         """
-        Return index arrays for each dimension of the output plasticity rule for the weight matrix between the last hidden layer and the output layer
+        Return index arrays for each dimension of the plasticity rule for the weight matrix between the last hidden layer and the output layer
         """
         # Get details of the presynaptic (last hidden) and postsynaptic (output) layers, and the latest firing pattern of the last hidden layer
-        presyn_width = self.w[-1]
-        postsyn_width = self.m
-        presyn_acts = self.hidden_layer_activations[-1]
-        connectivity = self.output_layer
+        net = self.ff_net
+        presyn_width = net.w[-1]
+        postsyn_width = net.m
+        presyn_acts = net.hidden_layer_activations[-1]
+        connectivity = net.output_layer
 
         # Rule dimension 0: 1 if the postsynaptic node is the label, 0 otherwise
         dim0_idx = torch.zeros(postsyn_width, presyn_width, dtype=torch.long)
