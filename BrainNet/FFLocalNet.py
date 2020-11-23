@@ -10,6 +10,7 @@ import torch.nn as nn
 
 from FFBrainNet import FFBrainNet
 from FFLocalPlasticityRules.PlasticityRule import PlasticityRule
+from FFLocalPlasticityRules.TablePlasticityRule import TablePlasticityRule
 from LocalNetBase import Options, UpdateScheme
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -116,6 +117,44 @@ class FFLocalNet(FFBrainNet):
 
         # Store the rule
         self.output_rule = output_rule
+
+
+    def get_hidden_layer_rule(self):
+        """Return the hidden layer plasticity rule(s)"""
+        unique_rules = set(self.hidden_layer_rules) - {None}
+
+        # If the only hidden layer rule is a table-based rule, return the rule in its native shape
+        if len(unique_rules) == 1:
+            only_rule = unique_rules.pop()
+            if isinstance(only_rule, TablePlasticityRule):
+                return only_rule.get_rule()
+            else:
+                return only_rule
+        else:
+            return unique_rules
+
+    def get_output_rule(self):
+        """Return the output layer plasticity rule"""
+        if isinstance(self.output_rule, TablePlasticityRule):
+            return self.output_rule.get_rule()
+        else:
+            return self.output_rule
+
+    def set_hidden_layer_rule(self, rule):
+        unique_rules = set(self.hidden_layer_rules) - {None}
+        if len(unique_rules) == 1:
+            only_rule = unique_rules.pop()
+            if isinstance(only_rule, TablePlasticityRule):
+                # We can set this rule
+                only_rule.set_rule(rule)
+                return
+        raise AssertionError('Currently, set_hidden_layer_rule() can only be called for single, table-based plasticity rules.')
+
+    def set_output_rule(self, rule):
+        if isinstance(self.output_rule, TablePlasticityRule):
+            self.output_rule.set_rule(rule)
+        else:
+            raise AssertionError('Currently, set_output_rule() can only be called for table-based plasticity rules.')
 
 
     def copy_graph(self, net, input_layer=False, graph=False, output_layer=False):
