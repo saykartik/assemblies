@@ -366,3 +366,39 @@ def evaluate(X, y, num_labels, model_forward, verbose=True):
                 print("Acc of class", i, ": {0:.4f}".format(ac[i] / (total[i] + 1e-6)))
 
     return acc, b
+
+
+# OLD method from original paper:
+def train_given_rule(X, y, meta_model, decay = 1, epochs = 1, verbose = False, X_test = None, y_test = None):
+    print('===> WARNING: Basile does not recommend using this method except for replicating original experiments!')
+    all_rules = []
+    test_accuracies = []
+    train_accuracies = []
+
+    batch = 1
+    for i in range(epochs):
+        print("Epoch #:", i)
+        for k in range(len(X)):
+            inputs = X[k*batch:(k+1)*batch,:]
+            labels = y[k*batch:(k+1)*batch]
+            inputs = torch.from_numpy(inputs).double()
+            labels = torch.from_numpy(labels).long()
+
+            if i == 0 and k == 0: continue_ = False
+            else: continue_ = True
+            loss = meta_model(inputs, labels, 1, batch, continue_ = continue_)
+
+            if k == len(X) - 1 or (verbose and k % 5000 == 0):
+                print("Train on", k, " examples.")
+                acc = evaluate(X, y, meta_model.m, meta_model.forward_pass)
+                train_accuracies.append(acc)
+                print("Train Accuracy: {0:.4f}".format(acc))
+
+                test_acc = evaluate(X_test, y_test, meta_model.m, meta_model.forward_pass)
+                test_accuracies.append(test_acc)
+                print("Test Accuracy: {0:.4f}".format(test_acc))
+
+            if k % 10000 == 0:
+                meta_model.step_sz *= decay
+
+    return train_accuracies, test_accuracies
