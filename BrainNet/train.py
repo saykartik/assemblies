@@ -156,7 +156,8 @@ def metalearn_rules(X, y, meta_model, num_rule_epochs, num_epochs, batch_size, l
 
 
 def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_rate=1e-2,
-                     X_test=None, y_test=None, verbose=False, stats_interval=500):
+                     X_test=None, y_test=None, verbose=False, stats_interval=500,
+                     disable_backprop=False):
     '''
     If vanilla is False:
     Trains the network weights for one epoch using a fixed set of plasticity rules.
@@ -189,6 +190,7 @@ def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_r
         other_stats: (all_true_y_train, all_pred_y_train, all_true_y_test, all_pred_y_test)
             where each element is a (num_batches) numpy array representing every sample
             from the last sub-epoch evaluation.
+        disable_backprop: Not recommended by Basile, but exists for backward compatibility.
 
     NOTE: The returned stats are always evaluated over the *whole* datasets,
     even though they are calculated multiple times per training epoch.
@@ -196,6 +198,11 @@ def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_r
     model.double()
     optimizer = optim.Adam(model.parameters(), lr=learn_rate)
     criterion = nn.CrossEntropyLoss()
+
+    if disable_backprop:
+        if vanilla:
+            raise ValueError('We cannot train by sheer magic yet.')
+        print('===> WARNING: Backprop is disabled, which means that all layers without rules will never change!')
 
     data_count = len(X)
     if vanilla:
@@ -269,8 +276,10 @@ def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_r
                 loss = model(inputs, labels, 1, batch_size, continue_=continue_)
                 
                 # Update remaining weights using backprop.
-                loss.backward()
-                optimizer.step()
+                # NOTE: Weirdly enough, this is not done in the original paper.
+                if not disable_backprop:
+                    loss.backward()
+                    optimizer.step()
 
             cur_losses.append(loss.item())
 
@@ -366,39 +375,3 @@ def evaluate(X, y, num_labels, model_forward, verbose=True):
                 print("Acc of class", i, ": {0:.4f}".format(ac[i] / (total[i] + 1e-6)))
 
     return acc, b
-
-
-# OLD method from original paper:
-def train_given_rule(X, y, meta_model, decay = 1, epochs = 1, verbose = False, X_test = None, y_test = None):
-    print('===> WARNING: Basile does not recommend using this method except for replicating original experiments!')
-    all_rules = []
-    test_accuracies = []
-    train_accuracies = []
-
-    batch = 1
-    for i in range(epochs):
-        print("Epoch #:", i)
-        for k in range(len(X)):
-            inputs = X[k*batch:(k+1)*batch,:]
-            labels = y[k*batch:(k+1)*batch]
-            inputs = torch.from_numpy(inputs).double()
-            labels = torch.from_numpy(labels).long()
-
-            if i == 0 and k == 0: continue_ = False
-            else: continue_ = True
-            loss = meta_model(inputs, labels, 1, batch, continue_ = continue_)
-
-            if k == len(X) - 1 or (verbose and k % 5000 == 0):
-                print("Train on", k, " examples.")
-                acc, _ = evaluate(X, y, meta_model.m, meta_model.forward_pass)
-                train_accuracies.append(acc)
-                print("Train Accuracy: {0:.4f}".format(acc))
-
-                test_acc, _ = evaluate(X_test, y_test, meta_model.m, meta_model.forward_pass)
-                test_accuracies.append(test_acc)
-                print("Test Accuracy: {0:.4f}".format(test_acc))
-
-            if k % 10000 == 0:
-                meta_model.step_sz *= decay
-
-    return train_accuracies, test_accuracies
