@@ -390,11 +390,11 @@ def train_given_rule(X, y, meta_model, decay = 1, epochs = 1, verbose = False, X
 
             if k == len(X) - 1 or (verbose and k % 5000 == 0):
                 print("Train on", k, " examples.")
-                acc = evaluate(X, y, meta_model.m, meta_model.forward_pass)
+                acc, _ = evaluate(X, y, meta_model.m, meta_model.forward_pass)
                 train_accuracies.append(acc)
                 print("Train Accuracy: {0:.4f}".format(acc))
 
-                test_acc = evaluate(X_test, y_test, meta_model.m, meta_model.forward_pass)
+                test_acc, _ = evaluate(X_test, y_test, meta_model.m, meta_model.forward_pass)
                 test_accuracies.append(test_acc)
                 print("Test Accuracy: {0:.4f}".format(test_acc))
 
