@@ -199,10 +199,14 @@ def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_r
     optimizer = optim.Adam(model.parameters(), lr=learn_rate)
     criterion = nn.CrossEntropyLoss()
 
+    # Sanity check and warning.
     if disable_backprop:
         if vanilla:
-            raise ValueError('We cannot train by sheer magic yet.')
-        print('===> WARNING: Backprop is disabled, which means that all layers without rules will never change!')
+            raise ValueError('Both vanilla and disable_backprop are True? '
+                             'Unfortunately, we cannot train by sheer magic just yet.')
+        print('===> WARNING: Backprop is disabled, '
+              'which means that all layers without rules will never change their weights!')
+        print('===> This is NOT recommended by Basile!')
 
     data_count = len(X)
     if vanilla:
@@ -220,7 +224,7 @@ def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_r
             print("INITIAL test accuracy: {0:.4f}".format(test_acc))
         else:
             test_acc = -1.0
-    
+
     else:
         # Rule-based; reset weights first by calling forward once.
         loss = model(torch.from_numpy(X[0:1]).double(),
@@ -247,7 +251,7 @@ def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_r
         X, y = shuffle(X, y)
         if X_test is not None:
             X_test, y_test = shuffle(X_test, y_test)
-            
+
         cur_losses = []
 
         # Loop over all batches within this epoch.
@@ -271,10 +275,10 @@ def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_r
                     continue_ = False  # Reset weights.
                 else:
                     continue_ = True
-                
+
                 # Update selected weights using rules.
                 loss = model(inputs, labels, 1, batch_size, continue_=continue_)
-                
+
                 # Update remaining weights using backprop.
                 # NOTE: Weirdly enough, this is not done in the original paper.
                 if not disable_backprop:
@@ -286,7 +290,7 @@ def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_r
             # Periodically calculate stats.
             if k == num_batches - 1 or (stats_interval > 0 and
                                         total_samples % stats_interval < batch_size):
-                
+
                 # Evaluate current performance over training data.
                 if vanilla:
                     train_acc, pred_y_train = evaluate(X, y, model.m, model, verbose=verbose)
