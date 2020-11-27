@@ -10,7 +10,6 @@ import torch.nn as nn
 
 from FFBrainNet import FFBrainNet
 from FFLocalPlasticityRules.PlasticityRule import PlasticityRule
-from FFLocalPlasticityRules.TablePlasticityRule import TablePlasticityRule
 from LocalNetBase import Options, UpdateScheme
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -123,38 +122,33 @@ class FFLocalNet(FFBrainNet):
         """Return the hidden layer plasticity rule(s)"""
         unique_rules = set(self.hidden_layer_rules) - {None}
 
-        # If the only hidden layer rule is a table-based rule, return the rule in its native shape
+        # If the there is a single rule, return the result of get_rule()
         if len(unique_rules) == 1:
             only_rule = unique_rules.pop()
-            if isinstance(only_rule, TablePlasticityRule):
-                return only_rule.get_rule()
-            else:
-                return only_rule
+            return only_rule.get_rule()
         else:
-            return unique_rules
+            raise AssertionError('Currently, get_hidden_layer_rule() can only be called for single plasticity rules.')
 
     def get_output_rule(self):
         """Return the output layer plasticity rule"""
-        if isinstance(self.output_rule, TablePlasticityRule):
-            return self.output_rule.get_rule()
-        else:
-            return self.output_rule
+        return self.output_rule.get_rule()
 
     def set_hidden_layer_rule(self, rule):
+        # Make sure we're not trying to set a learnable rule, which currently isn't supported
+        assert not self.options.gd_graph_rule, "Currently, there is no support for setting learnable plasticity rules. gd_graph_rule must be False to set a hidden-layer rule."
+
         unique_rules = set(self.hidden_layer_rules) - {None}
         if len(unique_rules) == 1:
             only_rule = unique_rules.pop()
-            if isinstance(only_rule, TablePlasticityRule):
-                # We can set this rule
-                only_rule.set_rule(rule)
-                return
-        raise AssertionError('Currently, set_hidden_layer_rule() can only be called for single, table-based plasticity rules.')
+            only_rule.set_rule(rule)
+        else:
+            raise AssertionError('Currently, set_hidden_layer_rule() can only be called for single plasticity rules.')
 
     def set_output_rule(self, rule):
-        if isinstance(self.output_rule, TablePlasticityRule):
-            self.output_rule.set_rule(rule)
-        else:
-            raise AssertionError('Currently, set_output_rule() can only be called for table-based plasticity rules.')
+        # Make sure we're not trying to set a learnable rule, which currently isn't supported
+        assert not self.options.gd_output_rule, "Currently, there is no support for setting learnable plasticity rules. gd_output_rule must be False to set an output rule."
+
+        self.output_rule.set_rule(rule)
 
 
     def copy_graph(self, net, input_layer=False, graph=False, output_layer=False):

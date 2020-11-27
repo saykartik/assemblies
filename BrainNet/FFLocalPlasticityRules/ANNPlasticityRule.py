@@ -42,6 +42,14 @@ class ANNPlasticityRule(PlasticityRule):
             rule_model.requires_grad_(False)
 
 
+    def get_rule(self):
+        """Return the state of the plasticity rule"""
+        return self.rule.state_dict()
+
+    def set_rule(self, rule):
+        """Use a provided state dictionary as the rule contents"""
+        self.rule.load_state_dict(rule, strict=True)
+
 # ----------------------------------------------------------------------------------------------------------------------
 # ----------------------------------  Methods to be implemented by subclasses  -----------------------------------------
 

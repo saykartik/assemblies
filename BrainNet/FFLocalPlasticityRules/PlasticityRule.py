@@ -41,6 +41,14 @@ class PlasticityRule:
         """
         raise NotImplementedError()
 
+    def get_rule(self):
+        """Return the state of the rule in a form that can be passed back to set_rule() to define the rule"""
+        raise NotImplementedError()
+
+    def set_rule(self, rule):
+        """Set the state of the rule from the results of get_rule() called on a compatible PlasticityRule object"""
+        raise NotImplementedError()
+
     def hidden_layer_betas(self, h):
         """
         Returns a 2D array of plasticity beta values for updating the weight matrix between hidden layers h and h-1

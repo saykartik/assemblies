@@ -44,11 +44,6 @@ class TablePlasticityRule(PlasticityRule):
 
     def set_rule(self, rule):
         """Use a provided table of beta values as the rule contents"""
-        # Make sure we're not trying to set a learnable rule, which currently isn't supported
-        opts = self.ff_net.options
-        rule_is_learnable = opts.gd_output_rule if self.isOutputRule else opts.gd_graph_rule
-        assert not rule_is_learnable, "Currently, there is no support for setting learnable plasticity rules. Update the network's options as necessary."
-
         # Assign the rule as a flat Tensor
         if isinstance(rule, torch.Tensor):
             self.rule = rule.clone().detach().flatten().double()
