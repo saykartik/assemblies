@@ -123,7 +123,7 @@ def epsilon_sensitivity_trend(models, orig_test_data, num_labels,limit=None,verb
     # new_data = orig_test_data
     for model_name, model in models.items():
         accuracy_trend = []
-
+        print("Model: ", model_name)
         for epsilon in epsilons:
             this_model = model
             X, Y = get_adv_bulk_data(new_data, this_model.forward_pass, epsilon,limit=limit)
