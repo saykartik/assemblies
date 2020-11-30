@@ -177,6 +177,7 @@ def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_r
             If False, only summarize at the end.
         stats_interval: If > 0, number of samples to process in-between subsequent
             accuracy measurements (also called sub-epochs).
+        disable_backprop: Not recommended by Basile, but exists for backward compatibility.
 
     Returns:
         (all_losses, all_train_acc, all_test_acc, sample_counts, other_stats).
@@ -190,7 +191,6 @@ def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_r
         other_stats: (all_true_y_train, all_pred_y_train, all_true_y_test, all_pred_y_test)
             where each element is a (num_batches) numpy array representing every sample
             from the last sub-epoch evaluation.
-        disable_backprop: Not recommended by Basile, but exists for backward compatibility.
 
     NOTE: The returned stats are always evaluated over the *whole* datasets,
     even though they are calculated multiple times per training epoch.
