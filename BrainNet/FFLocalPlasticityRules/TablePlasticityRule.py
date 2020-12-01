@@ -23,7 +23,7 @@ class TablePlasticityRule(PlasticityRule):
     def initialize(self, layers=None):
         # Create the plasticity rule, stored as a flattened array of beta values
         rule_len = int(np.prod(self.rule_shape()))
-        self.rule = torch.zeros(rule_len) if self.isOutputRule else torch.randn(rule_len)
+        self.rule = torch.zeros(rule_len) if self.isOutputRule else torch.rand(rule_len)
 
         # If necessary, convert the plasticity rule to a PyTorch 'Parameter' so it's treated as a model parameter and
         # updated via an optimizer.step()
