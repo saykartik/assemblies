@@ -146,6 +146,16 @@ class FFBrainNet(nn.Module):
         return adj
 
 
+    def copy_graph(self, net, input_layer=False, graph=False, output_layer=False):
+        """Use the connectivity graphs from another FFBrainNet"""
+        if input_layer:
+            self.input_layer = net.input_layer
+        if graph:
+            self.hidden_layers = net.hidden_layers
+        if output_layer:
+            self.output_layer = net.output_layer
+
+
     def forward_pass(self, x):
         """
         Return the output of the network from processing input X, which should have shape: <# of samples> X n

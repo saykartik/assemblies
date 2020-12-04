@@ -151,16 +151,6 @@ class FFLocalNet(FFBrainNet):
         self.output_rule.set_rule(rule)
 
 
-    def copy_graph(self, net, input_layer=False, graph=False, output_layer=False):
-        """Use the connectivity graphs from another FFBrainNet"""
-        if input_layer:
-            self.input_layer = net.input_layer
-        if graph:
-            self.hidden_layers = net.hidden_layers
-        if output_layer:
-            self.output_layer = net.output_layer
-
-
     def update_weights(self, probs, label):
         """
         Update the parameter weights according to the current plasticity rules and the latest firing patterns
