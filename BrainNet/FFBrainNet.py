@@ -22,19 +22,21 @@ class FFBrainNet(nn.Module):
         cap = max number of nodes firing at the hidden layers OR array of length l indicating the cap per hidden layer
 
     Additional parameters:
+        use_bias = boolean indicating whether additive bias vectors should be used for all non-input layers
         full_gd = boolean indicating whether the network will be configured to allow gradient descent across all layers.
                   This parameter determines whether weight matrices and bias vectors enable PyTorch's autograd capability
         The following parameters are only meaningful when full_gd is False:
         gd_input = boolean indicating whether the input weights should still support autograd when full_gd is False
         gd_output = boolean indicating whether the output weights & bias should still support autograd when full_gd is False
     """
-    def __init__(self, n=10, m=2, l=1, w=100, p=0.5, cap=50, full_gd=False, gd_input=True, gd_output=False):
+    def __init__(self, n=10, m=2, l=1, w=100, p=0.5, cap=50, use_bias=False, full_gd=False, gd_input=True, gd_output=False):
         super().__init__()
 
         # Store basic params
         self.n = n
         self.m = m
         self.l = l
+        self.use_bias = use_bias
 
         # Convert per-layer parameters to lists when a scalar is specified
         if isinstance(w, int):
@@ -60,7 +62,7 @@ class FFBrainNet(nn.Module):
         self.hidden_layers = self.hidden_layer_graphs(w, p)
         self.output_layer = self.random_bipartite_graph(w[-1], m, 1.0)      # Output layer is *fully-connected*
 
-        # Define weight matrices and bias vectors
+        # Define weight matrices and bias vectors (if requested)
         # NOTE: There is some code duplication with reset_weights() here.
         self.full_gd = full_gd
         self.gd_input = gd_input
@@ -78,16 +80,20 @@ class FFBrainNet(nn.Module):
             for i in range(l):
                 # First weight matrix is stored separately in input_weights (for consistency with BrainNet)
                 self.hidden_weights.append(None if i==0 else nn.Parameter(torch.rand(w[i], w[i-1]) - 0.5))
-                self.hidden_biases.append(nn.Parameter(torch.zeros(w[i])))
+                self.hidden_biases.append(nn.Parameter(torch.zeros(w[i])) if use_bias else None)
 
             # Output Layer
             self.output_weights = nn.Parameter(torch.rand(m, w[-1]) - 0.5)
-            self.output_bias = nn.Parameter(torch.zeros(m))
+            self.output_bias = nn.Parameter(torch.zeros(m)) if use_bias else None
 
         else:
             # DON'T enable autograd for everything
             # If we selectively perform GD for the input and/or output layers, those weights and biases must be
             # PyTorch Parameters to enable autograd.
+
+            # Normally, bias vectors would only be included when learnable via full_GD
+            if use_bias:
+                print("WARNING: An FFBrainNet with full_gd=False and use_bias=True will likely not learn all bias vectors!")
 
             # Input Layer
             if gd_input:
@@ -100,17 +106,17 @@ class FFBrainNet(nn.Module):
             for i in range(l):
                 # First weight matrix is stored separately in input_weights (for consistency with BrainNet)
                 self.hidden_weights.append(None if i==0 else torch.randn(w[i], w[i-1]))     # WHY a normal distribution here, but not for full_gd???
-                self.hidden_biases.append(torch.zeros(w[i]))
+                self.hidden_biases.append(torch.zeros(w[i]) if use_bias else None)
 
             # Output Layer
             if gd_output:
                 # Enable autograd for output weights / bias
                 # NOTE: Output bias is NOT a Torch Parameter in BrainNet for some reason
                 self.output_weights = nn.Parameter(torch.randn(m, w[-1]))       # WHY a normal distribution here, but not for full_gd???
-                self.output_bias = nn.Parameter(torch.zeros(m))
+                self.output_bias = nn.Parameter(torch.zeros(m)) if use_bias else None
             else:
                 self.output_weights = torch.randn(m, w[-1])
-                self.output_bias = torch.zeros(m)
+                self.output_bias = torch.zeros(m) if use_bias else None
 
 
     def hidden_layer_graphs(self, w, p):
@@ -177,7 +183,8 @@ class FFBrainNet(nn.Module):
         Overall process: cap(ReLU(weights@X + bias))
         """
         res = torch.mm(weights * connectivity, x.T)
-        res = res + bias[:, None]
+        if bias:
+            res = res + bias[:, None]
         res = F.relu(res)
         res = self.get_cap(res.T, cap)
         return res
@@ -186,7 +193,8 @@ class FFBrainNet(nn.Module):
     def get_output(self, x):
         """Similar to feed_forward, but softmax instead of ReLU, and no capping"""
         res = torch.mm(self.output_weights * self.output_layer, x.T)
-        res = res + self.output_bias[:, None]
+        if self.output_bias:
+            res = res + self.output_bias[:, None]
         return F.softmax(res.T, dim=1)
 
 
@@ -222,7 +230,8 @@ class FFBrainNet(nn.Module):
 
         # Always reset hidden layer weights
         self.hidden_weights = []
-        self.hidden_biases = []
+        if self.use_bias:
+            self.hidden_biases = []
         for i in range(self.l):
             if i==0:
                 layer_weights = None    # First weight matrix is stored in input_weights
@@ -233,7 +242,8 @@ class FFBrainNet(nn.Module):
                 layer_weights = torch.ones(self.w[i], self.w[i - 1])
 
             self.hidden_weights.append(layer_weights)
-            self.hidden_biases.append(torch.zeros(self.w[i]))
+            if self.use_bias:
+                self.hidden_biases.append(torch.zeros(self.w[i]))
 
         # Input Layer
         if input_rule:
@@ -248,4 +258,6 @@ class FFBrainNet(nn.Module):
             else:
                 # Multiplicative plasticity rule
                 self.output_weights = torch.ones(self.m, self.w[-1])
-            self.output_bias = torch.zeros(self.m)
+
+            if self.use_bias:
+                self.output_bias = torch.zeros(self.m)
