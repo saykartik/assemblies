@@ -118,6 +118,10 @@ class FFLocalNet(FFBrainNet):
         self.output_rule = output_rule
 
 
+    # ------------------------------------------------------------------------------------------------------------------
+    # Legacy methods for getting/setting plasticity rules
+    # Consider using copy_rules() below if you wish to copy existing rules between two FFLocalNets
+    # ------------------------------------------------------------------------------------------------------------------
     def get_hidden_layer_rule(self):
         """Return the hidden layer plasticity rule(s)"""
         unique_rules = set(self.hidden_layer_rules) - {None}
@@ -149,6 +153,78 @@ class FFLocalNet(FFBrainNet):
         assert not self.options.gd_output_rule, "Currently, there is no support for setting learnable plasticity rules. gd_output_rule must be False to set an output rule."
 
         self.output_rule.set_rule(rule)
+    # ------------------------------------------------------------------------------------------------------------------
+    # End legacy rule methods
+    # ------------------------------------------------------------------------------------------------------------------
+
+    def copy_rules(self, source, hl_rules=True, output_rule=True):
+        """
+        Copy the plasticity rule parameters from <source> to self.
+        The number and types of the plasticity rules must agree, and multiple hidden-layer rules will be matched up
+        based on the position of their first occurrence in hidden_layer_rules.
+        :param source: The FFLocalNet from which to copy the plasticity rules
+        :param hl_rules: Set to False if hidden-layer rules are used, but you don't want to copy them from source.
+        :param output_rule: Set to False if an output rule is used, but you don't want to copy it from source.
+        """
+
+        def check_compatibility(src_rule, dest_rule):
+            """Verify the two supplied rules are 'copy compatible'"""
+            # Rules must be the same object type
+            assert type(src_rule) is type(dest_rule), "Rule type mismatch when copying rules"
+
+            # The parameter dimensions of the rules must be identical
+            if hasattr(src_rule, 'rule_shape'):
+                assert src_rule.rule_shape() == dest_rule.rule_shape(), "Rule shape mismatch when copying rules"
+            elif hasattr(src_rule, 'rule_size'):
+                assert src_rule.rule_size() == dest_rule.rule_size(), "Rule size mismatch when copying rules"
+            else:
+                raise AssertionError("Unsupported rule type encountered when copying rules")
+
+        # Hidden-layer Rule(s)
+        if hl_rules:
+            # Make sure we're not trying to set learnable rules, which currently isn't supported
+            assert not self.options.gd_graph_rule, "Currently, there is no support for setting learnable plasticity rules. gd_graph_rule must be False to set a hidden-layer rule."
+
+            # Get the unique hidden-layer rules for each network
+            src_hl_rules = source.unique_hidden_layer_rules()
+            dest_hl_rules = self.unique_hidden_layer_rules()
+
+            # Make sure their number agree
+            assert len(src_hl_rules) == len(dest_hl_rules), "When copying hidden-layer rules, the number of unique rules must match"
+
+            # Preflight the copy, making sure the matched rules are compatible
+            for src_rule, dest_rule in zip(src_hl_rules, dest_hl_rules):
+                check_compatibility(src_rule, dest_rule)
+
+            # We should be good to copy over the hidden-layer rule(s)
+            for src_rule, dest_rule in zip(src_hl_rules, dest_hl_rules):
+                dest_rule.set_rule(src_rule.get_rule())
+
+        # Output Rule
+        if output_rule:
+            # Make sure we're not trying to set a learnable rule, which currently isn't supported
+            assert not self.options.gd_output_rule, "Currently, there is no support for setting learnable plasticity rules. gd_output_rule must be False to set an output rule."
+
+            # Get the output rules for each network
+            src_rule = source.output_rule
+            dest_rule = self.output_rule
+
+            # If the source or dest rule exists...
+            if src_rule or dest_rule:
+                # Make sure they're compatible
+                check_compatibility(src_rule, dest_rule)
+
+                # Copy over the output rule
+                dest_rule.set_rule(src_rule.get_rule())
+
+    def unique_hidden_layer_rules(self):
+        """Return a list of *unique* hidden-layer PlasticityRule objects, in the order in which they first appear in the model"""
+        unique_rules = []
+        for one_rule in self.hidden_layer_rules:
+            if one_rule:
+                if one_rule not in unique_rules:
+                    unique_rules.append(one_rule)
+        return unique_rules
 
 
     def update_weights(self, probs, label):
