@@ -31,7 +31,7 @@ def layer_relu_data(dim, n, k):
 
     out1 = F.relu(torch.matmul(pts, weights))
     w1 = 2 * (torch.rand(k, 2) - 0.5)
-    out2 = F.softmax(torch.matmul(out1, w1))
+    out2 = F.softmax(torch.matmul(out1, w1), dim=1)
 
     return np.array(pts), np.array(np.argmax(out2, axis=1))
 
