@@ -42,7 +42,7 @@ class OneBetaANNRule_PrePostAll(OneBetaANNPlasticityRule):
 
 
     def rule_size(self):
-        return 2+self.presynaptic_width, 20, 1      # Input size, Hidden layer size, Output size
+        return 2+self.presynaptic_width, 5, 1      # Input size, Hidden layer size, Output size
 
 
     def hidden_layer_rule_feature_arrays(self, h):

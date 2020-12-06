@@ -19,14 +19,15 @@ class ANNPlasticityRule(PlasticityRule):
         # Create the plasticity rule, stored as a Regression model
         input_sz, hidden_layer_sz, output_sz = self.rule_size()
         rule_model = Regression(input_sz, hidden_layer_sz, output_sz)
+        rule_model.double()
         self.rule = rule_model
 
         # Initialize the rule model's params
         # NOTE: How best to initialize the Regression params may require further exploration
-        # rule_model.hidden.weight.data.zero_()
+        rule_model.hidden.weight.data.fill_(0.5)
         rule_model.hidden.bias.data.zero_()
-        # rule_model.predict.weight.data.zero_()
-        rule_model.predict.bias.data.zero_()
+        rule_model.predict.weight.data.fill_(0.1)
+        rule_model.predict.bias.data.fill_(0.4)
 
         # Configure the rule depending on whether we're going to learn it via GD or not:
         # either register the Regression model as a sub-module of our parent FFLocalNet,
