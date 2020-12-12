@@ -1,6 +1,6 @@
 '''
 An alternative to fiddling with Jupyter notebooks.
-Run experiments over various hyperparameter settings (or just one),
+Run experiments with repeated trials at one specific hyperparameter configuration,
 and store the output statistics to pickle files for later visualization.
 In every case, we perform both upstream meta-learning and downstream training
 on separate network instances with transferred rules.
