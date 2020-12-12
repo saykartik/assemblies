@@ -370,9 +370,8 @@ def evaluate(X, y, num_labels, model_forward, verbose=True):
             if b[i] == y[i]:
                 ac[y[i]] += 1
 
-        correct = np.sum(y == b)
-
-        acc = correct / sum(total)
+        # 'Balanced Accuracy' a.k.a 'Macro Average Recall'
+        acc = np.average(np.array(ac) / np.array(total))
 
         if verbose:
             for i in range(num_labels):
