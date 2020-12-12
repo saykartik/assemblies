@@ -483,3 +483,11 @@ def results_filepath(filename):
         os.makedirs(_RESULTS_DIR)
     filepath = os.path.join(_RESULTS_DIR, filename)
     return filepath
+
+def plots_filepath(filename):
+    """Return a file path for the supplied file name"""
+    _PLOTS_DIR = 'plots/'
+    if not os.path.isdir(_PLOTS_DIR):
+        os.makedirs(_PLOTS_DIR)
+    filepath = os.path.join(_PLOTS_DIR, filename)
+    return filepath

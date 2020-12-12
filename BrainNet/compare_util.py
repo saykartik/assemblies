@@ -200,7 +200,7 @@ def eval_rule(net_fact, template,
     return agg_stats_up, agg_stats_down
 
 
-def plot_compare_results(stats_filename, rules_to_plot, title_desc, output_filename):
+def plot_compare_results(stats_filename, rules_to_plot, title_desc, plot_filename):
     # Load the requests stats data
     stats_file = results_filepath(stats_filename)
     with open(stats_file, 'rb') as f:
@@ -224,6 +224,6 @@ def plot_compare_results(stats_filename, rules_to_plot, title_desc, output_filen
             plot_compare_models(all_stats_up, all_stats_down, rules_shown,
                                 f'Meta-learning on {title_desc}',
                                 f'Re-training on {title_desc}',
-                                results_filepath(output_filename))
+                                plots_filepath(plot_filename))
         else:
             print('WARNING: No data to plot!')
