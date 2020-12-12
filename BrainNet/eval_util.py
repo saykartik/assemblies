@@ -30,7 +30,7 @@ from network import LocalNet
 from train import metalearn_rules, train_downstream
 
 
-def quick_get_data(which, dim, N=2000, split=0.75, relu_k=8):
+def quick_get_data(which, dim, N=4000, split=0.75, relu_k=8):
     '''
     Quick, get some data!
     '''
@@ -40,7 +40,7 @@ def quick_get_data(which, dim, N=2000, split=0.75, relu_k=8):
         X, y = random_halfspace_data(dim=dim, n=N)
 
     elif which == 'relu':
-        X, y = layer_relu_data(dim, N*3, relu_k)
+        X, y = layer_relu_data(dim, N, relu_k)
         class0_cnt = np.sum(y == 0)
         class1_cnt = np.sum(y == 1)
         total = class0_cnt + class1_cnt
@@ -77,7 +77,8 @@ def quick_get_data(which, dim, N=2000, split=0.75, relu_k=8):
 def evaluate_brain(brain_fact, n,
                    dataset_up='halfspace', dataset_down='halfspace', downstream_backprop=False,
                    num_runs=1, num_rule_epochs=50, num_epochs_upstream=1, num_epochs_downstream=1,
-                   min_upstream_acc=0.7, batch_size=100, learn_rate=1e-2, relu_k=8):
+                   min_upstream_acc=0.7, batch_size=100, learn_rate=1e-2,
+                   data_size=4000, relu_k=8):
     '''
     Evaluate a SINGLE network instance by meta-learning and then
     training on a reinitialized dataset of the same dimensionality.
@@ -108,7 +109,8 @@ def evaluate_brain(brain_fact, n,
         while not success:
             brain = brain_fact()  # NOTE: Some initializations are unlucky.
 
-            X_train, y_train, X_test, y_test = quick_get_data(dataset_up, n, relu_k=relu_k)
+            X_train, y_train, X_test, y_test = quick_get_data(
+                dataset_up, n, N=data_size, relu_k=relu_k)
             print('Meta-learning on ' + dataset_up + '...')
             stats_up = metalearn_rules(
                 X_train, y_train, brain, num_rule_epochs=num_rule_epochs,
@@ -123,7 +125,8 @@ def evaluate_brain(brain_fact, n,
         # NO rule transfer needed since we reuse the same network,
         # but just on a possibly altered dataset.
         if dataset_down is not None:
-            X_train, y_train, X_test, y_test = quick_get_data(dataset_down, n, relu_k=relu_k)
+            X_train, y_train, X_test, y_test = quick_get_data(
+                dataset_down, n, N=data_size, relu_k=relu_k)
             print('Training SAME brain instance on ' + dataset_down + '...')
         else:
             print('Training SAME brain instance on the same dataset instance...')
@@ -145,7 +148,8 @@ def evaluate_brain(brain_fact, n,
 def evaluate_up_down(brain_up_fact, brain_down_fact, n_up, n_down,
                      dataset_up='halfspace', dataset_down='halfspace', downstream_backprop=False,
                      num_runs=1, num_rule_epochs=50, num_epochs_upstream=1, num_epochs_downstream=1,
-                     get_model=False, min_upstream_acc=0.7, batch_size=100, learn_rate=1e-2, relu_k=8):
+                     get_model=False, min_upstream_acc=0.7, batch_size=100, learn_rate=1e-2,
+                     data_size=4000, relu_k=8):
     '''
     Evaluates a PAIR of brains on the quality of meta-learning
     and rule interpretations by training with transferred rules.
@@ -180,7 +184,8 @@ def evaluate_up_down(brain_up_fact, brain_down_fact, n_up, n_down,
             brain_up = brain_up_fact()  # NOTE: Some initializations are unlucky.
 
             print('Meta-learning on ' + dataset_up + '...')
-            X_train, y_train, X_test, y_test = quick_get_data(dataset_up, n_up, relu_k=relu_k)
+            X_train, y_train, X_test, y_test = quick_get_data(
+                dataset_up, n_up, N=data_size, relu_k=relu_k)
             stats_up = metalearn_rules(
                 X_train, y_train, brain_up, num_rule_epochs=num_rule_epochs,
                 num_epochs=num_epochs_upstream, batch_size=batch_size, learn_rate=learn_rate,
@@ -212,7 +217,8 @@ def evaluate_up_down(brain_up_fact, brain_down_fact, n_up, n_down,
         # Downstream.
         if dataset_down is not None and n_down is not None:
             print('Training NEW brain instance on ' + dataset_down + '...')
-            X_train, y_train, X_test, y_test = quick_get_data(dataset_down, n_down, relu_k=relu_k)
+            X_train, y_train, X_test, y_test = quick_get_data(
+                dataset_down, n_down, N=data_size, relu_k=relu_k)
         else:
             print('Training NEW brain instance on the same dataset instance...')
         stats_down = train_downstream(

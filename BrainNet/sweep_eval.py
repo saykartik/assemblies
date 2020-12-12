@@ -71,6 +71,9 @@ parser.add_argument('--m_up', default=2, type=int,
 parser.add_argument('--m_down', default=2, type=int,
                     help='Downstream label count (a.k.a. dimensionality of output layer) '
                     '(default: 2).')
+parser.add_argument('--data_size', default=4000, type=int,
+                    help='Total number of elements in halfspace or relu dataset (default: 4000). '
+                    'Note that the train/test split after generation is 0.75.')
 
 # Training and loss.
 parser.add_argument('--num_runs', default=5, type=int,
@@ -318,7 +321,8 @@ def main(args):
             num_runs=args.num_runs, num_rule_epochs=args.num_rule_epochs,
             num_epochs_upstream=args.num_epochs_upstream,
             num_epochs_downstream=args.num_epochs_downstream,
-            batch_size=args.batch_size, learn_rate=args.learn_rate, relu_k=1000)
+            batch_size=args.batch_size, learn_rate=args.learn_rate,
+            data_size=args.data_size, relu_k=1000)
 
     else:
 
@@ -336,7 +340,8 @@ def main(args):
         multi_stats = evaluate_vanilla(
             brain_fact, args.n_down, dataset=args.dataset_down,
             num_runs=args.num_runs, num_epochs=args.num_epochs_downstream,
-            batch_size=args.batch_size, learn_rate=args.learn_rate, relu_k=1000)
+            batch_size=args.batch_size, learn_rate=args.learn_rate,
+            data_size=args.data_size, relu_k=1000)
         stats_up, stats_down = None, multi_stats
 
     # Store all stats.
