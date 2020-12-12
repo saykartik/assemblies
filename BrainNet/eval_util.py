@@ -8,6 +8,7 @@ import copy
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
+import os
 import torch
 import torchvision
 import torchvision.datasets
@@ -473,3 +474,20 @@ def plot_compare_models(all_stats_up, all_stats_down, labels, title_up, title_do
     plt.savefig(save_name + '.pdf', dpi=192)
     plt.savefig(save_name + '.png', dpi=192)
     plt.show()
+
+
+def results_filepath(filename):
+    """Return a file path for the supplied file name"""
+    _RESULTS_DIR = 'results/'
+    if not os.path.isdir(_RESULTS_DIR):
+        os.makedirs(_RESULTS_DIR)
+    filepath = os.path.join(_RESULTS_DIR, filename)
+    return filepath
+
+def plots_filepath(filename):
+    """Return a file path for the supplied file name"""
+    _PLOTS_DIR = 'plots/'
+    if not os.path.isdir(_PLOTS_DIR):
+        os.makedirs(_PLOTS_DIR)
+    filepath = os.path.join(_PLOTS_DIR, filename)
+    return filepath
