@@ -17,6 +17,18 @@ import shutil
 from eval_util import *
 
 
+# https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
+def str2bool(v):
+    if isinstance(v, bool):
+       return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+
 # Process arguments.
 parser = argparse.ArgumentParser()
 
@@ -26,10 +38,10 @@ parser.add_argument('--model', default='rnn', type=str,
                     'table_prepost / table_prepostcount / table_prepostpercent / table_postcount / '
                     'reg_oneprepost / reg_oneprepostall / reg_onepostall / reg_allpostall / ff) '
                     '(default: rnn).')
-parser.add_argument('--use_graph_rule', default=True, type=bool,
+parser.add_argument('--use_graph_rule', default=True, type=str2bool,
                     help='Meta-learn and use plasticity rules for hidden layers instead of '
                     'backprop (default: True).')
-parser.add_argument('--use_output_rule', default=True, type=bool,
+parser.add_argument('--use_output_rule', default=True, type=str2bool,
                     help='Meta-learn and use plasticity rules for output layer instead of '
                     'backprop (default: True).')
 parser.add_argument('--num_hidden_layers', default=2, type=int,
@@ -44,7 +56,7 @@ parser.add_argument('--conn_prob', default=0.5, type=float,
 parser.add_argument('--proj_cap', default=50, type=int,
                     help='Upper bound number of firing neurons at every hidden layer '
                     '(or time step) to this value; recommended = width // 2 (default: 50).')
-parser.add_argument('--universal', default=True, type=bool,
+parser.add_argument('--universal', default=True, type=str2bool,
                     help='Use universal plasticity rule instead of per-later specialized ones. '
                     '(default: False).')
 
@@ -90,10 +102,10 @@ parser.add_argument('--batch_size', default=100, type=int,
 parser.add_argument('--learn_rate', default=1e-2, type=float,
                     help='Learning rate at all times. '
                     '(default: 1e-2).')
-parser.add_argument('--vanilla', default=False, type=bool,
+parser.add_argument('--vanilla', default=False, type=str2bool,
                     help='Discard rule options and train everything with regular backprop '
                     '(default: False).')
-parser.add_argument('--downstream_backprop', default=True, type=bool,
+parser.add_argument('--downstream_backprop', default=True, type=str2bool,
                     help='Train with gradient descent and backpropagation on the downstream '
                     'network instance (NOTE: not supported by RNN) (default: True).')
 
@@ -130,6 +142,12 @@ def _create_table_rules(args):
     else:
         raise ValueError('Unknown model / table rule type:', args.model)
 
+    # Discard rules that are not needed.
+    if not args.use_graph_rule:
+        hl_rules = None
+    if not args.use_output_rule:
+        output_rule = None
+
     return hl_rules, output_rule
 
 
@@ -164,6 +182,12 @@ def _create_regression_rules(args):
 
     else:
         raise ValueError('Unknown model / regression rule type:', args.model)
+
+    # Discard rules that are not needed.
+    if not args.use_graph_rule:
+        hl_rules = None
+    if not args.use_output_rule:
+        output_rule = None
 
     return hl_rules, output_rule
 
@@ -217,6 +241,9 @@ def main(args):
 
     # Correct invalid or irrelevant parameters.
     args.model = args.model.lower()
+    if args.num_hidden_layers == 1 and args.use_graph_rule:
+        print('===> WARNING: Forcing use_graph_rule to False because num_hidden_layers is 1!')
+        args.use_graph_rule = False
     if args.model == 'rnn' and args.downstream_backprop:
         print('===> WARNING: Forcing downstream_backprop to False because model is rnn!')
         args.downstream_backprop = False
