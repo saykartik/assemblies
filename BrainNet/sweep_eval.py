@@ -99,7 +99,7 @@ parser.add_argument('--downstream_backprop', default=True, type=bool,
                     'network instance (NOTE: not supported by RNN) (default: True).')
 
 
-def _get_table_rules(args):
+def _create_table_rules(args):
     if args.model == 'table_prepost':
         if args.universal:
             hl_rules = TableRule_PrePost()
@@ -134,7 +134,7 @@ def _get_table_rules(args):
     return hl_rules, output_rule
 
 
-def _get_regression_rules(args):
+def _create_regression_rules(args):
     if args.model == 'reg_oneprepost':
         if args.universal:
             hl_rules = OneBetaANNRule_PrePost()
@@ -188,11 +188,11 @@ def _create_brain_factories(args, opts_up, opts_down, scheme):
 
         if 'table_' in args.model:
             # Feed-forward neural networks with table-based plasticity rules.
-            def rule_fact(): return _get_table_rules(args)
+            def rule_fact(): return _create_table_rules(args)
 
         elif 'reg_' in args.model:
             # Feed-forward neural networks with small-ANN-based plasticity rules.
-            def rule_fact(): return _get_regression_rules(args)
+            def rule_fact(): return _create_regression_rules(args)
 
         else:
             raise ValueError('Unknown model / rule type:', args.model)
