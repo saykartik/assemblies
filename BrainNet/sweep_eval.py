@@ -36,9 +36,9 @@ parser.add_argument('--use_graph_rule', default=True, type=bool,
 parser.add_argument('--use_output_rule', default=True, type=bool,
                     help='Meta-learn and use plasticity rules for output layer instead of '
                     'backprop (default: True).')
-parser.add_argument('--num_hidden_layers', default=3, type=int,
+parser.add_argument('--num_hidden_layers', default=2, type=int,
                     help='Number of hidden layers for FF, or T (= rounds + 1) for RNN '
-                    '(default: 3).')
+                    '(default: 2).')
 parser.add_argument('--hidden_width', default=100, type=int,
                     help='Width of every hidden layer (or number of vertices in graph for RNN) '
                     '(default: 100).')
@@ -188,24 +188,28 @@ def _create_brain_factories(args, opts_up, opts_down, scheme):
 
         if 'table_' in args.model:
             # Feed-forward neural networks with table-based plasticity rules.
-            hl_rules, output_rule = _get_table_rules(args)
+            def rule_fact(): return _get_table_rules(args)
 
         elif 'reg_' in args.model:
             # Feed-forward neural networks with small-ANN-based plasticity rules.
-            hl_rules, output_rule = _get_regression_rules(args)
+            def rule_fact(): return _get_regression_rules(args)
 
         else:
             raise ValueError('Unknown model / rule type:', args.model)
 
-        def brain_up_fact(): return FFLocalNet(
-            args.n_up, args.m_up, args.num_hidden_layers, args.hidden_width,
-            args.conn_prob, args.proj_cap, hl_rules=hl_rules, output_rule=output_rule,
-            options=opts_up, update_scheme=scheme)
+        def brain_up_fact():
+            hl_rules, output_rule = rule_fact()
+            return FFLocalNet(
+                args.n_up, args.m_up, args.num_hidden_layers, args.hidden_width,
+                args.conn_prob, args.proj_cap, hl_rules=hl_rules, output_rule=output_rule,
+                options=opts_up, update_scheme=scheme)
 
-        def brain_down_fact(): return FFLocalNet(
-            args.n_down, args.m_down, args.num_hidden_layers, args.hidden_width,
-            args.conn_prob, args.proj_cap, hl_rules=hl_rules, output_rule=output_rule,
-            options=opts_down, update_scheme=scheme)
+        def brain_down_fact():
+            hl_rules, output_rule = rule_fact()
+            return FFLocalNet(
+                args.n_down, args.m_down, args.num_hidden_layers, args.hidden_width,
+                args.conn_prob, args.proj_cap, hl_rules=hl_rules, output_rule=output_rule,
+                options=opts_down, update_scheme=scheme)
 
     return brain_up_fact, brain_down_fact
 
