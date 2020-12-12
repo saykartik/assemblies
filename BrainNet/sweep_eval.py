@@ -10,15 +10,11 @@ Created by Basile Van Hoorick, December 2020.
 # Library imports.
 import argparse
 import datetime
-import os
 import pickle
 import shutil
 
 # Repository imports.
 from eval_util import *
-
-
-_RESULTS_DIR = 'results/'
 
 
 # Process arguments.
@@ -305,9 +301,7 @@ def main(args):
         print('update_all_edges = True')
         scheme = scheme_ff
 
-    if not os.path.isdir(_RESULTS_DIR):
-        os.makedirs(_RESULTS_DIR)
-    dst_path = os.path.join(_RESULTS_DIR, exp_tag + '.p')
+    dst_path = results_filepath(exp_tag + '.p')
 
     if not args.vanilla:
 
