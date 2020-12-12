@@ -62,13 +62,13 @@ parser.add_argument('--dataset_down', default='halfspace', type=str,
 parser.add_argument('--n_up', default=10, type=int,
                     help='Upstream dataset size (a.k.a. dimensionality of input layer) '
                     '(default: 10).')
-parser.add_argument('--n_down', default=20, type=int,
+parser.add_argument('--n_down', default=10, type=int,
                     help='Downstream dataset size (a.k.a. dimensionality of input layer) '
                     '(default: 20).')
-parser.add_argument('--m_up', default=10, type=int,
+parser.add_argument('--m_up', default=2, type=int,
                     help='Upstream label count (a.k.a. dimensionality of output layer) '
                     '(default: 2).')
-parser.add_argument('--m_down', default=20, type=int,
+parser.add_argument('--m_down', default=2, type=int,
                     help='Downstream label count (a.k.a. dimensionality of output layer) '
                     '(default: 2).')
 
@@ -212,11 +212,15 @@ def _create_brain_factories(args, opts_up, opts_down, scheme):
 
 def main(args):
 
-    # Correct invalid parameters.
+    # Correct invalid or irrelevant parameters.
     args.model = args.model.lower()
     if args.model == 'rnn' and args.downstream_backprop:
         print('===> WARNING: Forcing downstream_backprop to False because model is rnn!')
         args.downstream_backprop = False
+    if args.dataset_up == 'mnist':
+        args.n_up = 28 * 28
+    if args.dataset_down == 'mnist':
+        args.n_down = 28 * 28
     if args.vanilla:
         print('===> NOTE: Vanilla is enabled, so we do not care about rules, '
               'and only the FF versus RNN distinction matters.')

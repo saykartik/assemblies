@@ -371,7 +371,7 @@ def evaluate(X, y, num_labels, model_forward, verbose=True):
                 ac[y[i]] += 1
 
         # 'Balanced Accuracy' a.k.a 'Macro Average Recall'
-        acc = np.average(np.array(ac) / np.array(total))
+        acc = np.average(np.array(ac) / (np.array(total) + 1e-6))
 
         if verbose:
             for i in range(num_labels):
