@@ -240,7 +240,7 @@ def evaluate_up_down(brain_up_fact, brain_down_fact, n_up, n_down,
 
 
 def evaluate_vanilla(brain_fact, dim, dataset='halfspace', num_runs=1, num_epochs=1,
-                     batch_size=100, learn_rate=1e-2, relu_k=8):
+                     batch_size=100, learn_rate=1e-2, data_size=4000, relu_k=8):
     '''
     Evaluates a brain using regular gradient descent and backprop.
 
@@ -255,7 +255,7 @@ def evaluate_vanilla(brain_fact, dim, dataset='halfspace', num_runs=1, num_epoch
 
         brain = brain_fact()
 
-        X_train, y_train, X_test, y_test = quick_get_data(dataset, dim, relu_k=relu_k)
+        X_train, y_train, X_test, y_test = quick_get_data(dataset, dim, N=data_size, relu_k=relu_k)
         stats = train_downstream(
             X_train, y_train, brain, num_epochs=num_epochs,
             batch_size=batch_size, vanilla=True, learn_rate=learn_rate,

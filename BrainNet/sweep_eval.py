@@ -258,6 +258,7 @@ def main(args):
     exp_tag += f'_ddo{args.dataset_down}'
     exp_tag += f'_ndo{args.n_down}'
     exp_tag += f'_mdo{args.m_down}'
+    exp_tag += f'_ds{args.data_size}'
     exp_tag += f'_runs{args.num_runs}'
     exp_tag += f'_ned{args.num_epochs_downstream}'
     exp_tag += f'_bs{args.batch_size}'
