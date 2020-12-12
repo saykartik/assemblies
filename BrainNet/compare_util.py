@@ -1,7 +1,7 @@
-'''
+"""
 Utilities for running the plasticity rule comparison experiments
 Created by Brett Karopczyc, November 2020
-'''
+"""
 
 # Imports
 import torch.nn as nn

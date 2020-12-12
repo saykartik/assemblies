@@ -1,7 +1,7 @@
-'''
+"""
 Generate plots for the rule comparison experiments
 Created by Brett Karopczyc, November 2020
-'''
+"""
 
 from compare_util import *
 

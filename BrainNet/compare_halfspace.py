@@ -1,7 +1,7 @@
-'''
+"""
 Run rule comparison experiments on halfspace data
 Created by Brett Karopczyc, November 2020
-'''
+"""
 
 # Imports
 from compare_util import compare_rules
