@@ -62,7 +62,7 @@ parser.add_argument('--dataset_down', default='halfspace', type=str,
 parser.add_argument('--n_up', default=10, type=int,
                     help='Upstream dataset size (a.k.a. dimensionality of input layer) '
                     '(default: 10).')
-parser.add_argument('--n_down', default=10, type=int,
+parser.add_argument('--n_down', default=20, type=int,
                     help='Downstream dataset size (a.k.a. dimensionality of input layer) '
                     '(default: 20).')
 parser.add_argument('--m_up', default=2, type=int,
