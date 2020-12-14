@@ -7,20 +7,19 @@ from sklearn.utils import shuffle
 from network import BrainNet
 from tqdm import tqdm
 
-
 np.set_printoptions(precision=4)
 
 
 def plot_output_stats(all_true_y_train, all_pred_y_train, all_true_y_test, all_pred_y_test):
     plt.figure()
-    plt.hist(all_true_y_train, bins=np.max(all_true_y_train)+1)
+    plt.hist(all_true_y_train, bins=np.max(all_true_y_train) + 1)
     plt.xlabel('Value')
     plt.ylabel('Count')
     plt.title('Frequency of ground truth labels on training data')
     plt.show()
 
     plt.figure()
-    plt.hist(all_pred_y_train, bins=np.max(all_pred_y_train)+1)
+    plt.hist(all_pred_y_train, bins=np.max(all_pred_y_train) + 1)
     plt.xlabel('Value')
     plt.ylabel('Count')
     plt.title('Frequency of model predictions on training data')
@@ -28,7 +27,7 @@ def plot_output_stats(all_true_y_train, all_pred_y_train, all_true_y_test, all_p
 
     if len(all_pred_y_test):
         plt.figure()
-        plt.hist(all_pred_y_test, bins=np.max(all_pred_y_test)+1)
+        plt.hist(all_pred_y_test, bins=np.max(all_pred_y_test) + 1)
         plt.xlabel('Value')
         plt.ylabel('Count')
         plt.title('Frequency of model predictions on testing data')
@@ -88,8 +87,8 @@ def metalearn_rules(X, y, meta_model, num_rule_epochs, num_epochs, batch_size, l
 
         # Loop over small batches of samples.
         for k in range(num_batches):
-            inputs_numpy = X[k*batch_size:(k+1)*batch_size]
-            labels_numpy = y[k*batch_size:(k+1)*batch_size]
+            inputs_numpy = X[k * batch_size:(k + 1) * batch_size]
+            labels_numpy = y[k * batch_size:(k + 1) * batch_size]
             inputs = torch.from_numpy(inputs_numpy).double()
             labels = torch.from_numpy(labels_numpy).long()
             total_samples += batch_size
@@ -256,8 +255,8 @@ def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_r
 
         # Loop over all batches within this epoch.
         for k in tqdm(range(num_batches)):
-            inputs_numpy = X[k*batch_size:(k+1)*batch_size]
-            labels_numpy = y[k*batch_size:(k+1)*batch_size]
+            inputs_numpy = X[k * batch_size:(k + 1) * batch_size]
+            labels_numpy = y[k * batch_size:(k + 1) * batch_size]
             inputs = torch.from_numpy(inputs_numpy).double()
             labels = torch.from_numpy(labels_numpy).long()
             total_samples += batch_size
@@ -299,7 +298,7 @@ def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_r
                         X, y, model.m, model.forward_pass, verbose=verbose)
                 all_train_acc.append(train_acc)
                 if verbose:
-                    print(f'Step {k+1} / {num_batches}')
+                    print(f'Step {k + 1} / {num_batches}')
                     print("Train accuracy: {0:.4f}".format(train_acc))
 
                 # Evaluate current performance over test data.
@@ -351,7 +350,7 @@ def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_r
     return (all_losses, all_train_acc, all_test_acc, sample_counts, other_stats)
 
 
-def evaluate(X, y, num_labels, model_forward, verbose=True):
+def evaluate(X, y, num_labels, model_forward, verbose=True, ignore_missed_class=False):
     '''
     X, y: One batch of inputs and ground truths.
     Returns mean accuracy and array of predictions for this batch (i.e. dataset).
@@ -371,7 +370,18 @@ def evaluate(X, y, num_labels, model_forward, verbose=True):
                 ac[y[i]] += 1
 
         # 'Balanced Accuracy' a.k.a 'Macro Average Recall'
-        acc = np.average(np.array(ac) / (np.array(total) + 1e-6))
+        if not ignore_missed_class:
+            acc = np.average(np.array(ac) / (np.array(total) + 1e-6))
+        else:
+            # If there are missing classes, we ignore them in the count instead of saying zero accuracy
+            sum_acc = 0
+            classes = 0
+            for class_ac, class_total in zip(ac, total):
+                if not class_total == 0:
+                    sum_acc += class_ac / class_total
+                    classes += 1
+
+            acc = sum_acc / classes
 
         if verbose:
             for i in range(num_labels):
