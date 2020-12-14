@@ -315,7 +315,7 @@ def plot_curves(agg_stats_up, agg_stats_down, title_up, title_down, save_name='f
     If multiple runs were executed, the shaded areas indicate standard deviations.
     '''
     prop_cycle = plt.rcParams['axes.prop_cycle']
-    default_colors = prop_cycle.by_key()['color']  # NOTE: Only six colors.
+    default_colors = prop_cycle.by_key()['color']  # NOTE: Only six colors if using seaborn.
 
     if len(agg_stats_down) == 5:
         # One run.
@@ -395,7 +395,7 @@ def plot_curves(agg_stats_up, agg_stats_down, title_up, title_down, save_name='f
 def get_colors_styles(labels):
     # NOTE: Please feel free to modify this method to improve your figures.
     prop_cycle = plt.rcParams['axes.prop_cycle']
-    default_colors = prop_cycle.by_key()['color']  # NOTE: Only six colors.
+    default_colors = prop_cycle.by_key()['color']  # NOTE: Only six colors if using seaborn.
 
     colors = copy.deepcopy(default_colors)
     styles = ['solid'] * len(labels)
@@ -421,11 +421,11 @@ def plot_compare_models(all_stats_up, all_stats_down, labels, title_up, title_do
     num_models = len(all_stats_up)
     assert(num_models == len(all_stats_down) and num_models == len(labels))
 
-    if len(labels) > 6:
-        raise ValueError("Too many plots at once (we don't have that many colors)")
-
     fig, ax = plt.subplots(1, 2, figsize=(10, 4))
     colors, styles = get_colors_styles(labels)
+
+    if len(labels) > len(colors):
+        raise ValueError("Too many plots at once (we don't have that many colors)")
 
     for i in range(num_models):
         agg_stats_up = all_stats_up[i]
