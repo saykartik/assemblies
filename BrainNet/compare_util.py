@@ -39,7 +39,7 @@ def compare_rules(dataset='halfspace', dim=10, N=10000,
              'ANNOnePostAll': {'class': OneBetaANNRule_PostAll, 'desc': "One Beta ANN | Post and All Incoming", 'min_acc': low_acc},
              'ANNAllPostAll': {'class': AllBetasANNRule_PostAll, 'desc': "All Betas ANN | Post and All Incoming"}}
 
-    print(f'Analyzing {plas_rules} plasticity rule(s)')
+    print(f'\nAnalyzing {plas_rules} plasticity rule(s)')
     use_output_rule = plas_rules is not 'hidden-layer'
     use_hl_rule = plas_rules is not 'output'
 
@@ -50,8 +50,10 @@ def compare_rules(dataset='halfspace', dim=10, N=10000,
                    use_output_rule=use_output_rule,
                    gd_output_rule=use_output_rule)
 
-    # Use 2 hidden layers if we're learning a hidden-layer rule, otherwise just use a single hidden layer
-    l = 2 if use_hl_rule else 1
+    # Use 2 or 3 hidden layers if we're learning a hidden-layer rule, otherwise just use a single hidden layer
+    l = 1
+    if use_hl_rule:
+        l = 2 if dataset=='halfspace' else 3
     n = dim
 
     # Prepare to gather all stats for our experiments
@@ -98,7 +100,7 @@ def compare_rules(dataset='halfspace', dim=10, N=10000,
 
     # Train RNN
     if 'RNN' not in rules_to_skip:
-        print('\n==== Interpretation: RNN ====')
+        print('\n==== RNN Baseline ====')
         # Train a similarly sized RNN network with the plasticity rules from the original paper
         def net_fact(): return LocalNet(n, m, w, p, cap, l-1, options=opts, update_scheme=scheme)
         model_stats = eval_rule(net_fact, None,
@@ -130,10 +132,7 @@ def compare_rules(dataset='halfspace', dim=10, N=10000,
                                 num_retrain, num_epochs_downstream, min_acc)
 
         # Store the resulting stats, or note that the learning failed
-        if model_stats == (None, None):
-            print(f'Meta-learning FAILED for {description}')
-        else:
-            stats[tag] = model_stats
+        stats[tag] = model_stats
 
     # Save our stats to a file
     filename = f'comparing_{dataset}_{plas_rules}.p'
@@ -152,9 +151,11 @@ def eval_rule(net_fact, template,
 
     # Meta-learn a plasticity rule(s)
     # If the resulting accuracy is too low, we may just have a bad random initialization, so try again.
-    attempts = 3
-    while attempts > 0:
+    max_retries = 3
+    attempts = 0
+    while True:
         print(f'Meta-learning on {dataset}...')
+        attempts += 1
 
         # Instantiate the network
         network = net_fact()
@@ -175,9 +176,10 @@ def eval_rule(net_fact, template,
             break
         else:
             print(f'Final upstream test acc {stats_up[2][-1]:.4f} not high enough...')
-            attempts -= 1
-            if attempts == 0:
-                return None, None
+            if attempts >= max_retries:
+                print(f'Meta-learning FAILED after {attempts} attempts! Proceeding with re-training...')
+                num_retrain = 1     # Don't waste time doing multiple re-trainings for a failed meta-learning
+                break
 
     # Perform re-trainings on the same network and data to assess the plasticity rule we learned
     multi_stats_down = []
