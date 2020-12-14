@@ -5,6 +5,14 @@ Created by Brett Karopczyc, November 2020
 
 from compare_util import *
 
+use_seaborn = True
+if use_seaborn:
+    plt.style.use('seaborn')
+    # We need to add some colors to seaborn's default cycler (which only hax 6)
+    default_colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    default_colors += ['#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+    plt.rcParams['axes.prop_cycle'] = plt.cycler(color=default_colors)
+
 # Common sets of rules
 baseline_rules = ['GD', 'RNN']
 table_based_rules = ['PrePost', 'PrePostCount', 'PrePostPercent', 'PostCount']
