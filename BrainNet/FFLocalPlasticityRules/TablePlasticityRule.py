@@ -13,6 +13,16 @@ from .PlasticityRule import PlasticityRule
 
 # ----------------------------------------------------------------------------------------------------------------------
 
+
+def ravel_multi_index(index_arrays, shape):
+    factor = 1
+    result = torch.zeros_like(index_arrays[0])
+    for i in reversed(range(len(shape))):
+        result += factor * index_arrays[i]
+        factor *= shape[i]
+    return result
+
+
 class TablePlasticityRule(PlasticityRule):
     """
     This class extends PlasticityRule to add support for rules represented as tables of beta values.
@@ -57,10 +67,12 @@ class TablePlasticityRule(PlasticityRule):
         index_arrays = self.hidden_layer_rule_index_arrays(h)
 
         # Convert these dimension indexes into scalar indexes into the flattened hidden-layer rule
-        rule_idx = np.ravel_multi_index(index_arrays, self.rule_shape())
+        # rule_idx = np.ravel_multi_index(index_arrays, self.rule_shape())
+        rule_idx = ravel_multi_index(index_arrays, self.rule_shape())
 
         # Return the corresponding array of beta values
-        return self.rule[torch.tensor(rule_idx)]
+        # return self.rule[torch.tensor(rule_idx)]
+        return self.rule[rule_idx]
 
     def output_betas(self, prediction, label):
         """Return the plasticity beta values for updating the weight matrix between the last hidden layer and the output layer"""
@@ -69,10 +81,12 @@ class TablePlasticityRule(PlasticityRule):
         index_arrays = self.output_rule_index_arrays(prediction, label)
 
         # Convert these dimension indexes into scalar indexes into the flattened output rule
-        rule_idx = np.ravel_multi_index(index_arrays, self.rule_shape())
+        # rule_idx = np.ravel_multi_index(index_arrays, self.rule_shape())
+        rule_idx = ravel_multi_index(index_arrays, self.rule_shape())
 
         # Return the corresponding array of beta values
-        return self.rule[torch.tensor(rule_idx)]
+        # return self.rule[torch.tensor(rule_idx)]
+        return self.rule[rule_idx]
 
 # ----------------------------------------------------------------------------------------------------------------------
 # ----------------------------------  Methods to be implemented by subclasses  -----------------------------------------
