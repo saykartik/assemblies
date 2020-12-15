@@ -12,6 +12,7 @@ import argparse
 import datetime
 import pickle
 import shutil
+import sys
 
 # Repository imports.
 from eval_util import *
@@ -108,6 +109,10 @@ parser.add_argument('--vanilla', default=False, type=str2bool,
 parser.add_argument('--downstream_backprop', default=True, type=str2bool,
                     help='Train with gradient descent and backpropagation on the downstream '
                     'network instance (NOTE: not supported by RNN) (default: True).')
+
+# Miscellaneous.
+parser.add_argument('--ignore_if_exist', default=True, type=str2bool,
+                    help='If True, do not run experiment if the results file already exists.')
 
 
 def _create_table_rules(args):
@@ -292,6 +297,12 @@ def main(args):
         exp_tag += f'_dsbp'
     print('Experiment tag:', exp_tag)
 
+    # Get destination file path for results.
+    dst_path = results_filepath(exp_tag + '.p')
+    if os.path.isfile(dst_path) and args.ignore_if_exist:
+        print('===> Already exists! Skipping...')
+        sys.exit(0)
+
     # Get meta-learning and training options.
     opts_up = Options(gd_input=True,
                       use_graph_rule=args.use_graph_rule,
@@ -328,12 +339,11 @@ def main(args):
         print('update_all_edges = True')
         scheme = scheme_ff
 
-    dst_path = results_filepath(exp_tag + '.p')
-
     if not args.vanilla:
 
         # Instantiate brain factories.
         brain_fact_up, brain_fact_down = _create_brain_factories(args, opts_up, opts_down, scheme)
+        min_upstream_acc = 0.4 if args.model in ['table_postcount', 'reg_onepostall'] else 0.7
 
         # Start evaluation.
         stats_up, stats_down = evaluate_up_down(
@@ -343,6 +353,7 @@ def main(args):
             num_runs=args.num_runs, num_rule_epochs=args.num_rule_epochs,
             num_epochs_upstream=args.num_epochs_upstream,
             num_epochs_downstream=args.num_epochs_downstream,
+            min_upstream_acc=min_upstream_acc,
             batch_size=args.batch_size, learn_rate=args.learn_rate,
             data_size=args.data_size, relu_k=1000)
 

@@ -16,7 +16,7 @@ do
 proj_cap=$(($hidden_width / 2))
 
 # for model in table_prepost table_prepostcount table_prepostpercent table_postcount reg_oneprepost reg_oneprepost reg_onepostall reg_allpostall
-for model in reg_oneprepost reg_oneprepost reg_onepostall reg_allpostall
+for model in reg_oneprepost reg_oneprepostall reg_allpostall
 do
 for universal in 1 0
 do
