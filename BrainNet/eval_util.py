@@ -174,6 +174,7 @@ def evaluate_up_down(brain_up_fact, brain_down_fact, n_up, n_down,
 
     multi_stats_up = []
     multi_stats_down = []
+    failures = 0
 
     for run in range(num_runs):
         print()
@@ -181,7 +182,7 @@ def evaluate_up_down(brain_up_fact, brain_down_fact, n_up, n_down,
 
         # Upstream.
         success = False
-        while not success:
+        while not success and failures < 10:
             brain_up = brain_up_fact()  # NOTE: Some initializations are unlucky.
 
             print('Meta-learning on ' + dataset_up + '...')
@@ -194,6 +195,7 @@ def evaluate_up_down(brain_up_fact, brain_down_fact, n_up, n_down,
 
             success = (stats_up[2][-1] >= min_upstream_acc)
             if not success:
+                failures += 1
                 print(f'Final upstream test acc {stats_up[2][-1]:.4f} not high enough, retrying...')
 
         # Transfer rules.
