@@ -79,7 +79,7 @@ def evaluate_brain(brain_fact, n,
                    dataset_up='halfspace', dataset_down='halfspace', downstream_backprop=False,
                    num_runs=1, num_rule_epochs=50, num_epochs_upstream=1, num_epochs_downstream=1,
                    min_upstream_acc=0.7, batch_size=100, learn_rate=1e-2,
-                   data_size=4000, relu_k=8):
+                   data_size=4000, relu_k=8, use_gpu=False):
     '''
     Evaluate a SINGLE network instance by meta-learning and then
     training on a reinitialized dataset of the same dimensionality.
@@ -116,7 +116,7 @@ def evaluate_brain(brain_fact, n,
             stats_up = metalearn_rules(
                 X_train, y_train, brain, num_rule_epochs=num_rule_epochs,
                 num_epochs=num_epochs_upstream, batch_size=batch_size, learn_rate=learn_rate,
-                X_test=X_test, y_test=y_test, verbose=False)
+                X_test=X_test, y_test=y_test, verbose=False, use_gpu=use_gpu)
 
             success = (stats_up[2][-1] >= min_upstream_acc)
             if not success:
@@ -135,7 +135,8 @@ def evaluate_brain(brain_fact, n,
             X_train, y_train, brain, num_epochs=num_epochs_downstream,
             batch_size=batch_size, vanilla=False, learn_rate=learn_rate,
             X_test=X_test, y_test=y_test, verbose=False,
-            stats_interval=300, disable_backprop=not(downstream_backprop))
+            stats_interval=300, disable_backprop=not(downstream_backprop),
+            use_gpu=use_gpu)
 
         # Save this run.
         multi_stats_up.append(stats_up)
@@ -150,7 +151,7 @@ def evaluate_up_down(brain_up_fact, brain_down_fact, n_up, n_down,
                      dataset_up='halfspace', dataset_down='halfspace', downstream_backprop=False,
                      num_runs=1, num_rule_epochs=50, num_epochs_upstream=1, num_epochs_downstream=1,
                      get_model=False, min_upstream_acc=0.7, batch_size=100, learn_rate=1e-2,
-                     data_size=4000, relu_k=8):
+                     data_size=4000, relu_k=8, use_gpu=False):
     '''
     Evaluates a PAIR of brains on the quality of meta-learning
     and rule interpretations by training with transferred rules.
@@ -191,7 +192,7 @@ def evaluate_up_down(brain_up_fact, brain_down_fact, n_up, n_down,
             stats_up = metalearn_rules(
                 X_train, y_train, brain_up, num_rule_epochs=num_rule_epochs,
                 num_epochs=num_epochs_upstream, batch_size=batch_size, learn_rate=learn_rate,
-                X_test=X_test, y_test=y_test, verbose=False)
+                X_test=X_test, y_test=y_test, verbose=False, use_gpu=use_gpu)
 
             success = (stats_up[2][-1] >= min_upstream_acc)
             if not success:
@@ -228,7 +229,8 @@ def evaluate_up_down(brain_up_fact, brain_down_fact, n_up, n_down,
             X_train, y_train, brain_down, num_epochs=num_epochs_downstream,
             batch_size=batch_size, vanilla=False, learn_rate=learn_rate,
             X_test=X_test, y_test=y_test, verbose=False,
-            stats_interval=300, disable_backprop=not(downstream_backprop))
+            stats_interval=300, disable_backprop=not(downstream_backprop),
+            use_gpu=use_gpu)
 
         # Save this run.
         multi_stats_up.append(stats_up)
@@ -243,7 +245,8 @@ def evaluate_up_down(brain_up_fact, brain_down_fact, n_up, n_down,
 
 
 def evaluate_vanilla(brain_fact, dim, dataset='halfspace', num_runs=1, num_epochs=1,
-                     batch_size=100, learn_rate=1e-2, data_size=4000, relu_k=8):
+                     batch_size=100, learn_rate=1e-2, data_size=4000, relu_k=8,
+                     use_gpu=False):
     '''
     Evaluates a brain using regular gradient descent and backprop.
 
@@ -263,7 +266,7 @@ def evaluate_vanilla(brain_fact, dim, dataset='halfspace', num_runs=1, num_epoch
             X_train, y_train, brain, num_epochs=num_epochs,
             batch_size=batch_size, vanilla=True, learn_rate=learn_rate,
             X_test=X_test, y_test=y_test, verbose=False,
-            stats_interval=300, disable_backprop=False)
+            stats_interval=300, disable_backprop=False, use_gpu=use_gpu)
 
         # Save this run.
         multi_stats.append(stats)
@@ -304,7 +307,7 @@ def convert_multi_stats_uncertainty(multi_stats):
 #     print('losses_std:', losses_std.shape)
 
     sample_counts = multi_stats[0][3]  # We assume that this is the same everywhere!
-    other_stats = None  # Can't be arsed to combine this.
+    other_stats = None  # I wouldn't bother to combine this.
 
     agg_stats = (losses_mean, losses_std, train_acc_mean, train_acc_std,
                  test_acc_mean, test_acc_std, sample_counts, other_stats)

@@ -35,7 +35,7 @@ def plot_output_stats(all_true_y_train, all_pred_y_train, all_true_y_test, all_p
 
 
 def metalearn_rules(X, y, meta_model, num_rule_epochs, num_epochs, batch_size, learn_rate=1e-2,
-                    X_test=None, y_test=None, verbose=False):
+                    X_test=None, y_test=None, verbose=False, use_gpu=False):
     '''
     Meta-learns a set of plasticity rules on the given dataset and network.
     We apply gradient descent on the rules (and some layers, if desired).
@@ -105,14 +105,14 @@ def metalearn_rules(X, y, meta_model, num_rule_epochs, num_epochs, batch_size, l
 
         # Evaluate current performance over training data.
         train_acc, pred_y_train = evaluate(
-            X, y, meta_model.m, meta_model.forward_pass, verbose=verbose)
+            X, y, meta_model.m, meta_model.forward_pass, verbose=verbose, use_gpu=use_gpu)
         if verbose:
             print("Train accuracy: {0:.4f}".format(train_acc))
 
         # Evaluate current performance over test data.
         if X_test is not None:
             test_acc, pred_y_test = evaluate(
-                X_test, y_test, meta_model.m, meta_model.forward_pass, verbose=verbose)
+                X_test, y_test, meta_model.m, meta_model.forward_pass, verbose=verbose, use_gpu=use_gpu)
             if verbose:
                 print("Test accuracy: {0:.4f}".format(test_acc))
         else:
@@ -156,7 +156,7 @@ def metalearn_rules(X, y, meta_model, num_rule_epochs, num_epochs, batch_size, l
 
 def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_rate=1e-2,
                      X_test=None, y_test=None, verbose=False, stats_interval=500,
-                     disable_backprop=False):
+                     disable_backprop=False, use_gpu=False):
     '''
     If vanilla is False:
     Trains the network weights for one epoch using a fixed set of plasticity rules.
@@ -216,10 +216,10 @@ def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_r
 
     if vanilla:
         # Backprop-based.
-        train_acc, _ = evaluate(X, y, model.m, model, verbose=verbose)
+        train_acc, _ = evaluate(X, y, model.m, model, verbose=verbose, use_gpu=use_gpu)
         print("INITIAL train accuracy: {0:.4f}".format(train_acc))
         if X_test is not None:
-            test_acc, _ = evaluate(X_test, y_test, model.m, model, verbose=verbose)
+            test_acc, _ = evaluate(X_test, y_test, model.m, model, verbose=verbose, use_gpu=use_gpu)
             print("INITIAL test accuracy: {0:.4f}".format(test_acc))
         else:
             test_acc = -1.0
@@ -228,10 +228,10 @@ def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_r
         # Rule-based; reset weights first by calling forward once.
         loss = model(torch.from_numpy(X[0:1]).double(),
                      torch.from_numpy(y[0:1]).long(), 1, 1, continue_=False)
-        train_acc, _ = evaluate(X, y, model.m, model.forward_pass, verbose=verbose)
+        train_acc, _ = evaluate(X, y, model.m, model.forward_pass, verbose=verbose, use_gpu=use_gpu)
         print("INITIAL train accuracy: {0:.4f}".format(train_acc))
         if X_test is not None:
-            test_acc, _ = evaluate(X_test, y_test, model.m, model.forward_pass, verbose=verbose)
+            test_acc, _ = evaluate(X_test, y_test, model.m, model.forward_pass, verbose=verbose, use_gpu=use_gpu)
             print("INITIAL test accuracy: {0:.4f}".format(test_acc))
         else:
             test_acc = -1.0
@@ -292,10 +292,10 @@ def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_r
 
                 # Evaluate current performance over training data.
                 if vanilla:
-                    train_acc, pred_y_train = evaluate(X, y, model.m, model, verbose=verbose)
+                    train_acc, pred_y_train = evaluate(X, y, model.m, model, verbose=verbose, use_gpu=use_gpu)
                 else:
                     train_acc, pred_y_train = evaluate(
-                        X, y, model.m, model.forward_pass, verbose=verbose)
+                        X, y, model.m, model.forward_pass, verbose=verbose, use_gpu=use_gpu)
                 all_train_acc.append(train_acc)
                 if verbose:
                     print(f'Step {k + 1} / {num_batches}')
@@ -305,10 +305,10 @@ def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_r
                 if X_test is not None:
                     if vanilla:
                         test_acc, pred_y_test = evaluate(
-                            X_test, y_test, model.m, model, verbose=verbose)
+                            X_test, y_test, model.m, model, verbose=verbose, use_gpu=use_gpu)
                     else:
                         test_acc, pred_y_test = evaluate(
-                            X_test, y_test, model.m, model.forward_pass, verbose=verbose)
+                            X_test, y_test, model.m, model.forward_pass, verbose=verbose, use_gpu=use_gpu)
                     all_test_acc.append(test_acc)
                     if verbose:
                         print("Test accuracy: {0:.4f}".format(test_acc))
@@ -350,9 +350,10 @@ def train_downstream(X, y, model, num_epochs, batch_size, vanilla=False, learn_r
     return (all_losses, all_train_acc, all_test_acc, sample_counts, other_stats)
 
 
-def evaluate(X, y, num_labels, model_forward, verbose=True, ignore_missed_class=False):
+def evaluate(X, y, num_labels, model_forward, verbose=True, ignore_missed_class=False,
+             use_gpu=False):
     '''
-    X, y: One batch of inputs and ground truths.
+    X, y: One numpy batch of inputs and ground truths.
     Returns mean accuracy and array of predictions for this batch (i.e. dataset).
     '''
     ac = [0] * num_labels
@@ -361,7 +362,12 @@ def evaluate(X, y, num_labels, model_forward, verbose=True, ignore_missed_class=
 
         correct = 0
 
-        outputs = model_forward(torch.from_numpy(X).double())
+        inputs = torch.from_numpy(X).double()
+        if use_gpu:
+            inputs = inputs.cuda()
+        outputs = model_forward(inputs)
+        if use_gpu:
+            outputs = outputs.cpu()
         b = np.argmax(outputs, axis=1).numpy()
 
         for i in range(len(b)):
