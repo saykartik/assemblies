@@ -1,5 +1,5 @@
 """
-Run rule comparison experiments on halfspace data
+Run rule comparison experiments on relu data
 Created by Brett Karopczyc, November 2020
 """
 
@@ -8,15 +8,15 @@ from compare_util import compare_rules
 from LocalNetBase import UpdateScheme
 
 # Dataset params
-dataset = 'halfspace'
+dataset = 'relu'
 dim = 10  # Dimension of datasets
 N = 10000  # Size of datasets
 
 # Feed-forward brain config
 m = 2  # Output layer size.
-w = 32  # Width of hidden layers.
+w = 100  # Width of hidden layers.
 p = 0.5  # Connectivity probability.
-cap = 16  # Number of nodes firing per layer.
+cap = 50  # Number of nodes firing per layer.
 
 # Training config
 num_retrain = 5
@@ -27,7 +27,7 @@ scheme = UpdateScheme(cross_entropy_loss=True,
                       mse_loss=False,
                       update_misclassified_only=False,
                       update_all_edges=True)
-rules_to_skip = []
+rules_to_skip = ['PostCount', 'ANNOnePostAll']
 
 # ----------------------------------------------------------------------------------------------------------------------
 
