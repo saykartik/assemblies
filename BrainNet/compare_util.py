@@ -7,6 +7,7 @@ Created by Brett Karopczyc, November 2020
 import torch.nn as nn
 import pickle
 from eval_util import *
+import gc
 
 # ----------------------------------------------------------------------------------------------------------------------
 
@@ -170,6 +171,9 @@ def eval_rule(net_fact, template,
             num_epochs=num_epochs_upstream, batch_size=100, learn_rate=1e-2,
             X_test=X_test, y_test=y_test, verbose=False)
 
+        # Attempt to keep memory down
+        gc.collect()
+
         # Check whether the learning was successful
         success = (stats_up[2][-1] >= min_acc)
         if success:
@@ -195,9 +199,16 @@ def eval_rule(net_fact, template,
 
         multi_stats_down.append(stats_down)
 
+        # Attempt to keep memory down
+        gc.collect()
+
     # Return all training stats
     agg_stats_up = convert_multi_stats_uncertainty([stats_up])
     agg_stats_down = convert_multi_stats_uncertainty(multi_stats_down)
+
+    # Attempt to keep memory down
+    del network
+    gc.collect()
 
     return agg_stats_up, agg_stats_down
 
