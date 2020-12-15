@@ -66,13 +66,22 @@ class TablePlasticityRule(PlasticityRule):
         # Get an index array for each dimension of the plasticity rule (corresponding to the weight matrix)
         index_arrays = self.hidden_layer_rule_index_arrays(h)
 
-        # Convert these dimension indexes into scalar indexes into the flattened hidden-layer rule
-        # rule_idx = np.ravel_multi_index(index_arrays, self.rule_shape())
-        rule_idx = ravel_multi_index(index_arrays, self.rule_shape())
+        # NOTE: If on CPU, speed difference is negligible (both options work).
 
-        # Return the corresponding array of beta values
-        # return self.rule[torch.tensor(rule_idx)]
-        return self.rule[rule_idx]
+        if self.rule.is_cuda:
+            # Convert these dimension indexes into scalar indexes into the flattened hidden-layer rule
+            rule_idx = ravel_multi_index(index_arrays, self.rule_shape())
+
+            # Return the corresponding array of beta values
+            return self.rule[rule_idx]
+
+        else:
+            # Convert these dimension indexes into scalar indexes into the flattened hidden-layer rule
+            rule_idx = np.ravel_multi_index(index_arrays, self.rule_shape())
+
+            # Return the corresponding array of beta values
+            return self.rule[torch.tensor(rule_idx)]
+
 
     def output_betas(self, prediction, label):
         """Return the plasticity beta values for updating the weight matrix between the last hidden layer and the output layer"""
@@ -80,13 +89,21 @@ class TablePlasticityRule(PlasticityRule):
         # Get an index array for each dimension of the plasticity rule (corresponding to the weight matrix)
         index_arrays = self.output_rule_index_arrays(prediction, label)
 
-        # Convert these dimension indexes into scalar indexes into the flattened output rule
-        # rule_idx = np.ravel_multi_index(index_arrays, self.rule_shape())
-        rule_idx = ravel_multi_index(index_arrays, self.rule_shape())
+        # NOTE: If on CPU, speed difference is negligible (both options work).
 
-        # Return the corresponding array of beta values
-        # return self.rule[torch.tensor(rule_idx)]
-        return self.rule[rule_idx]
+        if self.rule.is_cuda:
+            # Convert these dimension indexes into scalar indexes into the flattened output rule
+            rule_idx = ravel_multi_index(index_arrays, self.rule_shape())
+
+            # Return the corresponding array of beta values
+            return self.rule[rule_idx]
+
+        else:
+            # Convert these dimension indexes into scalar indexes into the flattened output rule
+            rule_idx = np.ravel_multi_index(index_arrays, self.rule_shape())
+
+            # Return the corresponding array of beta values
+            return self.rule[torch.tensor(rule_idx)]
 
 # ----------------------------------------------------------------------------------------------------------------------
 # ----------------------------------  Methods to be implemented by subclasses  -----------------------------------------

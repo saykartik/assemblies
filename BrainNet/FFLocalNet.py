@@ -300,7 +300,7 @@ class FFLocalNet(FFBrainNet):
         Returns the final loss on all samples after all weight updates
         """
 
-        if self.use_gpu:
+        if self.use_gpu and not(inputs.is_cuda and labels.is_cuda):
             inputs = inputs.cuda()
             labels = labels.cuda()
 
@@ -320,6 +320,7 @@ class FFLocalNet(FFBrainNet):
                 outputs = self.forward_pass(x.unsqueeze(0))
 
                 # Update the weights using the recorded activations
+                # NOTE: Cumulative time of this call is >50% of forward()!
                 self.update_weights(outputs, ell)
 
         # Generate outputs using final weights

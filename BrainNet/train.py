@@ -85,12 +85,22 @@ def metalearn_rules(X, y, meta_model, num_rule_epochs, num_epochs, batch_size, l
         # print('Outer (rule) epoch ', outer_epoch)
         cur_losses = []
 
+        if use_gpu:
+            X_cuda = torch.from_numpy(X).double().cuda()
+            y_cuda = torch.from_numpy(y).long().cuda()
+
         # Loop over small batches of samples.
         for k in range(num_batches):
-            inputs_numpy = X[k * batch_size:(k + 1) * batch_size]
-            labels_numpy = y[k * batch_size:(k + 1) * batch_size]
-            inputs = torch.from_numpy(inputs_numpy).double()
-            labels = torch.from_numpy(labels_numpy).long()
+            
+            if use_gpu:
+                inputs = X_cuda[k * batch_size:(k + 1) * batch_size]
+                labels = y_cuda[k * batch_size:(k + 1) * batch_size]
+            else:
+                inputs_numpy = X[k * batch_size:(k + 1) * batch_size]
+                labels_numpy = y[k * batch_size:(k + 1) * batch_size]
+                inputs = torch.from_numpy(inputs_numpy).double()
+                labels = torch.from_numpy(labels_numpy).long()
+            
             total_samples += batch_size
             optimizer.zero_grad()
 

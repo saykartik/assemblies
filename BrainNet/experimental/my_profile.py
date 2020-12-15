@@ -14,6 +14,8 @@ import pickle
 import shutil
 import sys
 
+import cProfile
+
 # Repository imports.
 from eval_util import *
 
@@ -80,17 +82,17 @@ parser.add_argument('--m_up', default=2, type=int,
 parser.add_argument('--m_down', default=2, type=int,
                     help='Downstream label count (a.k.a. dimensionality of output layer) '
                     '(default: 2).')
-parser.add_argument('--data_size', default=10000, type=int,
-                    help='Total number of elements in halfspace or relu dataset (default: 10000). '
+parser.add_argument('--data_size', default=3000, type=int,
+                    help='Total number of elements in halfspace or relu dataset (default: 4000). '
                     'Note that the train/test split after generation is 0.75.')
 
 # Training and loss.
 parser.add_argument('--num_runs', default=5, type=int,
                     help='Number of times to repeat the experiment for more reliable statistics. '
-                    '(default: 5).')
-parser.add_argument('--num_rule_epochs', default=10, type=int,
-                    help='Number of upstream outer epochs. '
                     '(default: 10).')
+parser.add_argument('--num_rule_epochs', default=100, type=int,
+                    help='Number of upstream outer epochs. '
+                    '(default: 100).')
 parser.add_argument('--num_epochs_upstream', default=1, type=int,
                     help='Number of upstream inner epochs. '
                     '(default: 1).')
@@ -370,7 +372,6 @@ def main(args):
             num_runs=args.num_runs, num_rule_epochs=args.num_rule_epochs,
             num_epochs_upstream=args.num_epochs_upstream,
             num_epochs_downstream=args.num_epochs_downstream,
-            num_downstream_subruns=2,
             min_upstream_acc=min_upstream_acc,
             batch_size=args.batch_size, learn_rate=args.learn_rate,
             data_size=args.data_size, relu_k=1000,
@@ -403,6 +404,11 @@ def main(args):
     print('Stored all stats to:', dst_path)
 
 
-if __name__ == '__main__':
-    args = parser.parse_args()
-    main(args)
+args = parser.parse_args()
+    
+cProfile.run("main(args)", 'restats_gpu')
+
+# python my_profile.py --num_runs 1 --num_rule_epochs 10 --data_size 500 --ignore_if_exist 0 --use_gpu 1
+    
+    # main(args)
+

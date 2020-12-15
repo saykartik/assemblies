@@ -12,6 +12,7 @@ import os
 import torch
 import torchvision
 import torchvision.datasets
+from sklearn.utils import shuffle
 
 # Repository imports.
 from BrainNet import BrainNet
@@ -31,7 +32,7 @@ from network import LocalNet
 from train import metalearn_rules, train_downstream
 
 
-def quick_get_data(which, dim, N=4000, split=0.75, relu_k=8):
+def quick_get_data(which, dim, N=10000, split=0.75, relu_k=1000):
     '''
     Quick, get some data!
     '''
@@ -54,17 +55,29 @@ def quick_get_data(which, dim, N=4000, split=0.75, relu_k=8):
             root='./data', train=True, download=True, transform=None)
         mnist_test = torchvision.datasets.MNIST(
             root='./data', train=False, download=True, transform=None)
-        print('mnist_train:', len(mnist_train))
-        print('mnist_test:', len(mnist_test))
+        
+        print('MNIST train:', len(mnist_train))
+        print('MNIST test:', len(mnist_test))
         X_train = np.array([np.array(pair[0]) for pair in mnist_train]) / 255.0
         y_train = np.array([pair[1] for pair in mnist_train])
         X_test = np.array([np.array(pair[0]) for pair in mnist_test]) / 255.0
         y_test = np.array([pair[1] for pair in mnist_test])
         X_train = X_train.reshape(X_train.shape[0], -1)
         X_test = X_test.reshape(X_test.shape[0], -1)
+        
+        # print('Shuffling and reducing to train / test: 10000 / remainder, ignoring N...')
+        X_train, y_train = shuffle(X_train, y_train)
+        X_test, y_test = shuffle(X_test, y_test)
+        N_train = 10000
+        N_test = int(N_train * (1 - split) / split)
+        X_train = X_train[:N_train]
+        y_train = y_train[:N_train]
+        X_test = X_test[:N_test]
+        y_test = y_test[:N_test]
 
     else:
         raise ValueError('Unknown or unused dataset: ' + which)
+
 
     if which != 'mnist':
         X_train = X[:int(N*split)]
@@ -72,14 +85,17 @@ def quick_get_data(which, dim, N=4000, split=0.75, relu_k=8):
         X_test = X[int(N*split):]
         y_test = y[int(N*split):]
 
+    print('X_train:', X_train.shape)
+    print('X_test:', X_test.shape)
+
     return X_train, y_train, X_test, y_test
 
 
 def evaluate_brain(brain_fact, n,
                    dataset_up='halfspace', dataset_down='halfspace', downstream_backprop=False,
-                   num_runs=1, num_rule_epochs=50, num_epochs_upstream=1, num_epochs_downstream=1,
+                   num_runs=1, num_rule_epochs=10, num_epochs_upstream=1, num_epochs_downstream=1,
                    min_upstream_acc=0.7, batch_size=100, learn_rate=1e-2,
-                   data_size=4000, relu_k=8, use_gpu=False):
+                   data_size=10000, relu_k=1000, use_gpu=False):
     '''
     Evaluate a SINGLE network instance by meta-learning and then
     training on a reinitialized dataset of the same dimensionality.
@@ -149,9 +165,10 @@ def evaluate_brain(brain_fact, n,
 
 def evaluate_up_down(brain_up_fact, brain_down_fact, n_up, n_down,
                      dataset_up='halfspace', dataset_down='halfspace', downstream_backprop=False,
-                     num_runs=1, num_rule_epochs=50, num_epochs_upstream=1, num_epochs_downstream=1,
+                     num_runs=1, num_rule_epochs=10, num_epochs_upstream=1, num_epochs_downstream=1,
+                     num_downstream_subruns=1,
                      get_model=False, min_upstream_acc=0.7, batch_size=100, learn_rate=1e-2,
-                     data_size=4000, relu_k=8, use_gpu=False):
+                     data_size=10000, relu_k=1000, use_gpu=False):
     '''
     Evaluates a PAIR of brains on the quality of meta-learning
     and rule interpretations by training with transferred rules.
@@ -197,44 +214,52 @@ def evaluate_up_down(brain_up_fact, brain_down_fact, n_up, n_down,
             success = (stats_up[2][-1] >= min_upstream_acc)
             if not success:
                 failures += 1
-                print(f'Final upstream test acc {stats_up[2][-1]:.4f} not high enough, retrying... (failures = {failures}')
+                print(f'Final upstream test acc {stats_up[2][-1]:.4f} not high enough, retrying... (failures = {failures})')
 
-        # Transfer rules.
-        brain_down = brain_down_fact()
-        if isinstance(brain_down, FFLocalNet):
-            # FF-ANN.
-            brain_down.copy_rules(brain_up)
-        else:
-            # RNN.
-            try:
-                if brain_down.options.use_graph_rule:
-                    brain_down.set_rnn_rule(brain_up.get_rnn_rule())
-                if brain_down.options.use_output_rule:
-                    brain_down.set_output_rule(brain_up.get_output_rule())
-            except:
-                print('FALLBACK: direct assignment of rules...')
-                if downstream_backprop:
-                    print('=> WARNING: Rules might still be updated by GD this way')
-                brain_down.rnn_rule = brain_up.rnn_rule
-                brain_down.output_rule = brain_up.output_rule
+        for subrun in range(num_downstream_subruns):
 
-        # Downstream.
-        if dataset_down is not None and n_down is not None:
-            print('Training NEW brain instance on ' + dataset_down + '...')
-            X_train, y_train, X_test, y_test = quick_get_data(
-                dataset_down, n_down, N=data_size, relu_k=relu_k)
-        else:
-            print('Training NEW brain instance on the same dataset instance...')
-        stats_down = train_downstream(
-            X_train, y_train, brain_down, num_epochs=num_epochs_downstream,
-            batch_size=batch_size, vanilla=False, learn_rate=learn_rate,
-            X_test=X_test, y_test=y_test, verbose=False,
-            stats_interval=300, disable_backprop=not(downstream_backprop),
-            use_gpu=use_gpu)
+            if num_downstream_subruns > 1:
+                print(f'Run {run+1} / {num_runs}...')
+                print(f'Subrun {subrun+1} / {num_downstream_subruns}...')
+
+            # Transfer rules.
+            brain_down = brain_down_fact()
+            if isinstance(brain_down, FFLocalNet):
+                # FF-ANN.
+                brain_down.copy_rules(brain_up)
+            else:
+                # RNN.
+                try:
+                    if brain_down.options.use_graph_rule:
+                        brain_down.set_rnn_rule(brain_up.get_rnn_rule())
+                    if brain_down.options.use_output_rule:
+                        brain_down.set_output_rule(brain_up.get_output_rule())
+                except:
+                    print('FALLBACK: direct assignment of rules...')
+                    if downstream_backprop:
+                        print('=> WARNING: Rules might still be updated by GD this way')
+                    brain_down.rnn_rule = brain_up.rnn_rule
+                    brain_down.output_rule = brain_up.output_rule
+
+            # Downstream.
+            if dataset_down is not None and n_down is not None:
+                print('Training NEW brain instance on ' + dataset_down + '...')
+                X_train, y_train, X_test, y_test = quick_get_data(
+                    dataset_down, n_down, N=data_size, relu_k=relu_k)
+            else:
+                print('Training NEW brain instance on the same dataset instance...')
+            stats_down = train_downstream(
+                X_train, y_train, brain_down, num_epochs=num_epochs_downstream,
+                batch_size=batch_size, vanilla=False, learn_rate=learn_rate,
+                X_test=X_test, y_test=y_test, verbose=False,
+                stats_interval=300, disable_backprop=not(downstream_backprop),
+                use_gpu=use_gpu)
+
+            # Save this subrun.    
+            multi_stats_down.append(stats_down)
 
         # Save this run.
         multi_stats_up.append(stats_up)
-        multi_stats_down.append(stats_down)
 
         print()
 
@@ -245,7 +270,7 @@ def evaluate_up_down(brain_up_fact, brain_down_fact, n_up, n_down,
 
 
 def evaluate_vanilla(brain_fact, dim, dataset='halfspace', num_runs=1, num_epochs=1,
-                     batch_size=100, learn_rate=1e-2, data_size=4000, relu_k=8,
+                     batch_size=100, learn_rate=1e-2, data_size=10000, relu_k=1000,
                      use_gpu=False):
     '''
     Evaluates a brain using regular gradient descent and backprop.
