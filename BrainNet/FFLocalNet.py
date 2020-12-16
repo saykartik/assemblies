@@ -14,6 +14,7 @@ from LocalNetBase import Options, UpdateScheme
 
 # ----------------------------------------------------------------------------------------------------------------------
 
+
 class FFLocalNet(FFBrainNet):
     """
     This class extends FFBrainNet to add support for local plasticity rules, in a manner analogous to LocalNetBase.
@@ -38,7 +39,9 @@ class FFLocalNet(FFBrainNet):
 
     In addition, the Options and UpdateScheme structures from LocalNetBase were reused to control how the class is trained.
     """
-    def __init__(self, n, m, l, w, p, cap, hl_rules=None, output_rule=None, options=Options(), update_scheme=UpdateScheme()):
+
+    def __init__(self, n, m, l, w, p, cap, hl_rules=None, output_rule=None,
+                 options=Options(), update_scheme=UpdateScheme(), use_gpu=False):
         super().__init__(n=n,
                          m=m,
                          l=l,
@@ -52,7 +55,8 @@ class FFLocalNet(FFBrainNet):
         assert not options.use_input_rule, "There is currently no support for an input layer plasticity rule"
         assert options.gd_input, "If we don't use GD on the input weights, they will never be learned"
 
-        assert options.use_graph_rule == (l > 1), "A graph rule should be used iff there is more than 1 hidden layer"
+        assert options.use_graph_rule == (
+            l > 1), "A graph rule should be used iff there is more than 1 hidden layer"
         assert options.use_graph_rule or not options.gd_graph_rule, "gd_graph_rule is not applicable when use_graph_rule is False"
 
         assert options.use_output_rule or not options.gd_output_rule, "gd_output_rule is not applicable when use_output_rule is False"
@@ -61,6 +65,7 @@ class FFLocalNet(FFBrainNet):
         # Store additional params
         self.options = options
         self.update_scheme = update_scheme
+        self.use_gpu = use_gpu
         self.step_sz = 0.01
 
         # Define our plasticity rules:
@@ -75,7 +80,8 @@ class FFLocalNet(FFBrainNet):
         if not hl_rules_supplied:
             hl_rules = [None]   # First hidden layer never uses a plasticity rule
         elif isinstance(hl_rules, PlasticityRule):
-            hl_rules = [None] + [hl_rules] * (l-1)     # Common plasticity rule for all hidden layers
+            # Common plasticity rule for all hidden layers
+            hl_rules = [None] + [hl_rules] * (l-1)
         else:
             assert len(hl_rules) == (l-1), "hl_rules list must have length (l-1)"
             hl_rules = [None] + hl_rules
@@ -93,7 +99,6 @@ class FFLocalNet(FFBrainNet):
 
         # Store these rules
         self.hidden_layer_rules = hl_rules
-
 
         # Output rule
         # Make sure an output rule was supplied if needed
@@ -117,11 +122,11 @@ class FFLocalNet(FFBrainNet):
         # Store the rule
         self.output_rule = output_rule
 
-
     # ------------------------------------------------------------------------------------------------------------------
     # Legacy methods for getting/setting plasticity rules
     # Consider using copy_rules() below if you wish to copy existing rules between two FFLocalNets
     # ------------------------------------------------------------------------------------------------------------------
+
     def get_hidden_layer_rule(self):
         """Return the hidden layer plasticity rule(s)"""
         unique_rules = set(self.hidden_layer_rules) - {None}
@@ -131,7 +136,8 @@ class FFLocalNet(FFBrainNet):
             only_rule = unique_rules.pop()
             return only_rule.get_rule()
         else:
-            raise AssertionError('Currently, get_hidden_layer_rule() can only be called for single plasticity rules.')
+            raise AssertionError(
+                'Currently, get_hidden_layer_rule() can only be called for single plasticity rules.')
 
     def get_output_rule(self):
         """Return the output layer plasticity rule"""
@@ -146,7 +152,8 @@ class FFLocalNet(FFBrainNet):
             only_rule = unique_rules.pop()
             only_rule.set_rule(rule)
         else:
-            raise AssertionError('Currently, set_hidden_layer_rule() can only be called for single plasticity rules.')
+            raise AssertionError(
+                'Currently, set_hidden_layer_rule() can only be called for single plasticity rules.')
 
     def set_output_rule(self, rule):
         # Make sure we're not trying to set a learnable rule, which currently isn't supported
@@ -190,7 +197,8 @@ class FFLocalNet(FFBrainNet):
             dest_hl_rules = self.unique_hidden_layer_rules()
 
             # Make sure their number agree
-            assert len(src_hl_rules) == len(dest_hl_rules), "When copying hidden-layer rules, the number of unique rules must match"
+            assert len(src_hl_rules) == len(
+                dest_hl_rules), "When copying hidden-layer rules, the number of unique rules must match"
 
             # Preflight the copy, making sure the matched rules are compatible
             for src_rule, dest_rule in zip(src_hl_rules, dest_hl_rules):
@@ -225,7 +233,6 @@ class FFLocalNet(FFBrainNet):
                 if one_rule not in unique_rules:
                     unique_rules.append(one_rule)
         return unique_rules
-
 
     def update_weights(self, probs, label):
         """
@@ -286,7 +293,6 @@ class FFLocalNet(FFBrainNet):
             # Update the weight of each synapse in the output layer according to the corresponding beta values
             update_func(self.output_weights, betas)
 
-
     def forward(self, inputs, labels, epochs, batch, continue_=False):
         """
         Performs a forward pass on inputs and updates the weights after each sample according to the plasticity rules (as enabled by Options)
@@ -294,10 +300,15 @@ class FFLocalNet(FFBrainNet):
         Returns the final loss on all samples after all weight updates
         """
 
+        if self.use_gpu and not(inputs.is_cuda and labels.is_cuda):
+            inputs = inputs.cuda()
+            labels = labels.cuda()
+
         # When training using fixed rules, continue is False on first sample, True on all subsequent samples
         # i.e. weights are reset initially
         if continue_ is False:
-            self.reset_weights(additive=self.options.additive_rule, input_rule=self.options.use_input_rule, output_rule=self.options.use_output_rule)
+            self.reset_weights(additive=self.options.additive_rule,
+                               input_rule=self.options.use_input_rule, output_rule=self.options.use_output_rule)
             self.double()
 
         # For each inner epoch...
@@ -309,6 +320,7 @@ class FFLocalNet(FFBrainNet):
                 outputs = self.forward_pass(x.unsqueeze(0))
 
                 # Update the weights using the recorded activations
+                # NOTE: Cumulative time of this call is >50% of forward()!
                 self.update_weights(outputs, ell)
 
         # Generate outputs using final weights

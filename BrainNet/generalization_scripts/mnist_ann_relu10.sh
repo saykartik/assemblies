@@ -6,7 +6,7 @@ n_up=10
 n_down=784
 m_up=2
 m_down=10
-data_size=5000
+data_size=10000
 num_runs=5
 
 for num_hidden_layers in 1 2 3
@@ -15,7 +15,7 @@ for hidden_width in 100 500
 do
 proj_cap=$(($hidden_width / 2))
 
-# for model in table_prepost table_prepostcount table_prepostpercent table_postcount reg_oneprepost reg_oneprepost reg_onepostall reg_allpostall
+# for model in table_prepost table_prepostcount table_prepostpercent table_postcount reg_oneprepost reg_oneprepostall reg_onepostall reg_allpostall
 for model in reg_oneprepost reg_oneprepostall reg_allpostall
 do
 for universal in 1 0

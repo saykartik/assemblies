@@ -21,7 +21,7 @@ from eval_util import *
 # https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
 def str2bool(v):
     if isinstance(v, bool):
-       return v
+        return v
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
         return True
     elif v.lower() in ('no', 'false', 'f', 'n', '0'):
@@ -34,7 +34,7 @@ def str2bool(v):
 parser = argparse.ArgumentParser()
 
 # General network architecture.
-parser.add_argument('--model', default='rnn', type=str,
+parser.add_argument('--model', default='table_prepost', type=str,
                     help='Type of architecture and rule to use (rnn / '
                     'table_prepost / table_prepostcount / table_prepostpercent / table_postcount / '
                     'reg_oneprepost / reg_oneprepostall / reg_onepostall / reg_allpostall / ff) '
@@ -80,17 +80,17 @@ parser.add_argument('--m_up', default=2, type=int,
 parser.add_argument('--m_down', default=2, type=int,
                     help='Downstream label count (a.k.a. dimensionality of output layer) '
                     '(default: 2).')
-parser.add_argument('--data_size', default=4000, type=int,
-                    help='Total number of elements in halfspace or relu dataset (default: 4000). '
+parser.add_argument('--data_size', default=10000, type=int,
+                    help='Total number of elements in halfspace or relu dataset (default: 10000). '
                     'Note that the train/test split after generation is 0.75.')
 
 # Training and loss.
 parser.add_argument('--num_runs', default=5, type=int,
                     help='Number of times to repeat the experiment for more reliable statistics. '
-                    '(default: 10).')
-parser.add_argument('--num_rule_epochs', default=100, type=int,
+                    '(default: 5).')
+parser.add_argument('--num_rule_epochs', default=10, type=int,
                     help='Number of upstream outer epochs. '
-                    '(default: 100).')
+                    '(default: 10).')
 parser.add_argument('--num_epochs_upstream', default=1, type=int,
                     help='Number of upstream inner epochs. '
                     '(default: 1).')
@@ -113,6 +113,8 @@ parser.add_argument('--downstream_backprop', default=True, type=str2bool,
 # Miscellaneous.
 parser.add_argument('--ignore_if_exist', default=True, type=str2bool,
                     help='If True, do not run experiment if the results file already exists.')
+parser.add_argument('--use_gpu', default=False, type=str2bool,
+                    help='If True, try to use CUDA on an NVIDIA GPU.')
 
 
 def _create_table_rules(args):
@@ -204,12 +206,18 @@ def _create_brain_factories(args, opts_up, opts_down, scheme):
         # Graph RNN from paper.
 
         def brain_up_fact():
-            return LocalNet(args.n_up, args.m_up, args.hidden_width, args.conn_prob,
-                            args.proj_cap, rounds, options=opts_up, update_scheme=scheme)
+            model = LocalNet(args.n_up, args.m_up, args.hidden_width, args.conn_prob,
+                             args.proj_cap, rounds, options=opts_up, update_scheme=scheme)
+            if args.use_gpu:
+                model.cuda()
+            return model
 
         def brain_down_fact():
-            return LocalNet(args.n_down, args.m_down, args.hidden_width, args.conn_prob,
-                            args.proj_cap, rounds, options=opts_down, update_scheme=scheme)
+            model = LocalNet(args.n_down, args.m_down, args.hidden_width, args.conn_prob,
+                             args.proj_cap, rounds, options=opts_down, update_scheme=scheme)
+            if args.use_gpu:
+                model.cuda()
+            return model
 
     else:
         # Feed-forward neural networks.
@@ -227,22 +235,31 @@ def _create_brain_factories(args, opts_up, opts_down, scheme):
 
         def brain_up_fact():
             hl_rules, output_rule = rule_fact()
-            return FFLocalNet(
+            model = FFLocalNet(
                 args.n_up, args.m_up, args.num_hidden_layers, args.hidden_width,
                 args.conn_prob, args.proj_cap, hl_rules=hl_rules, output_rule=output_rule,
-                options=opts_up, update_scheme=scheme)
+                options=opts_up, update_scheme=scheme, use_gpu=args.use_gpu)
+            if args.use_gpu:
+                model.cuda()
+            return model
 
         def brain_down_fact():
             hl_rules, output_rule = rule_fact()
-            return FFLocalNet(
+            model = FFLocalNet(
                 args.n_down, args.m_down, args.num_hidden_layers, args.hidden_width,
                 args.conn_prob, args.proj_cap, hl_rules=hl_rules, output_rule=output_rule,
-                options=opts_down, update_scheme=scheme)
+                options=opts_down, update_scheme=scheme, use_gpu=args.use_gpu)
+            if args.use_gpu:
+                model.cuda()
+            return model
 
     return brain_up_fact, brain_down_fact
 
 
 def main(args):
+
+    if args.use_gpu:
+        torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
     # Correct invalid or irrelevant parameters.
     args.model = args.model.lower()
@@ -353,9 +370,11 @@ def main(args):
             num_runs=args.num_runs, num_rule_epochs=args.num_rule_epochs,
             num_epochs_upstream=args.num_epochs_upstream,
             num_epochs_downstream=args.num_epochs_downstream,
+            num_downstream_subruns=2,
             min_upstream_acc=min_upstream_acc,
             batch_size=args.batch_size, learn_rate=args.learn_rate,
-            data_size=args.data_size, relu_k=1000)
+            data_size=args.data_size, relu_k=1000,
+            use_gpu=args.use_gpu)
 
     else:
 
@@ -374,7 +393,8 @@ def main(args):
             brain_fact, args.n_down, dataset=args.dataset_down,
             num_runs=args.num_runs, num_epochs=args.num_epochs_downstream,
             batch_size=args.batch_size, learn_rate=args.learn_rate,
-            data_size=args.data_size, relu_k=1000)
+            data_size=args.data_size, relu_k=1000,
+            use_gpu=args.use_gpu)
         stats_up, stats_down = None, multi_stats
 
     # Store all stats.
