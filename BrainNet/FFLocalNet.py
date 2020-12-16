@@ -49,7 +49,9 @@ class FFLocalNet(FFBrainNet):
                          p=p,
                          cap=cap,
                          gd_input=options.gd_input,
-                         gd_output=options.gd_output)
+                         gd_output=options.gd_output,
+                         use_softmax=options.use_softmax,
+                         )
 
         # Make sure the options are consistent
         assert not options.use_input_rule, "There is currently no support for an input layer plasticity rule"

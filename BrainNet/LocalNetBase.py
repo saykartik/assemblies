@@ -15,7 +15,9 @@ class Options:
             gd_output_rule = False,
             gd_input = False,
             gd_output = False,
-            additive_rule = True):
+            additive_rule = True,
+            use_softmax=True
+    ):
         self.gd_output = gd_output
         self.gd_input = gd_input
         self.use_graph_rule = use_graph_rule 
@@ -23,7 +25,8 @@ class Options:
         self.gd_graph_rule = gd_graph_rule 
         self.use_output_rule = use_output_rule
         self.gd_output_rule = gd_output_rule
-        self.additive_rule = additive_rule
+        self.additive_rule = additive_rule,
+        self.use_softmax = use_softmax
     
 class UpdateScheme: 
     def __init__(
@@ -55,7 +58,9 @@ class LocalNetBase(BrainNet):
                             cap = cap, 
                             rounds = rounds, 
                             gd_input = options.gd_input, 
-                            gd_output = options.gd_output)
+                            gd_output = options.gd_output,
+                            use_softmax=options.use_softmax
+                            )
 
         self.options = options
         self.update_scheme = update_scheme

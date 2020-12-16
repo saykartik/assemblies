@@ -110,7 +110,7 @@ def epsilon_sensitivity_trend(
         num_labels,
         limit=None,
         verbose=False,
-        models_agree=True,
+        filter_good=True,
         gd_adversary_model='Full GD'
 ):
     """
@@ -119,7 +119,7 @@ def epsilon_sensitivity_trend(
     :param orig_test_data: A list tuples of (X,Y) observations
     :param limit: Limit the number of datapoints of adversarial examples
     :param verbose: Talk a lot.
-    :param models_agree - All models must agree on the output for test example.Useful only for high accuracy models
+    :param filter_good - All models must agree on the output for test example.Useful only for high accuracy models
     :param gd_adversary_only: Adversaries are generated from the Full GD model only
     :return: A dict of timeseries of accuracies varying with epsilon pertrubation
     """
@@ -139,7 +139,7 @@ def epsilon_sensitivity_trend(
 
     orig_test_data = [(torch.from_numpy(X).double(), Y) for X, Y in orig_test_data]
 
-    if models_agree:
+    if filter_good:
         new_data = [(X, Y) for X, Y in orig_test_data if models_agree(X, Y, models)]
     else:
         new_data = orig_test_data
