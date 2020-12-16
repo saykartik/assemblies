@@ -29,7 +29,7 @@ class FFBrainNet(nn.Module):
         gd_input = boolean indicating whether the input weights should still support autograd when full_gd is False
         gd_output = boolean indicating whether the output weights & bias should still support autograd when full_gd is False
     """
-    def __init__(self, n=10, m=2, l=1, w=100, p=0.5, cap=50, use_bias=False, full_gd=False, gd_input=True, gd_output=False):
+    def __init__(self, n=10, m=2, l=1, w=100, p=0.5, cap=50, use_bias=False, full_gd=False, gd_input=True, gd_output=False, use_softmax=True):
         super().__init__()
 
         # Store basic params
@@ -37,6 +37,7 @@ class FFBrainNet(nn.Module):
         self.m = m
         self.l = l
         self.use_bias = use_bias
+        self.use_softmax = use_softmax
 
         # Convert per-layer parameters to lists when a scalar is specified
         if isinstance(w, int):
@@ -193,7 +194,7 @@ class FFBrainNet(nn.Module):
         Overall process: cap(ReLU(weights@X + bias))
         """
         res = torch.mm(weights * connectivity, x.T)
-        if bias:
+        if self.use_bias:
             res = res + bias[:, None]
         res = F.relu(res)
         res = self.get_cap(res.T, cap)
@@ -203,9 +204,13 @@ class FFBrainNet(nn.Module):
     def get_output(self, x):
         """Similar to feed_forward, but softmax instead of ReLU, and no capping"""
         res = torch.mm(self.output_weights * self.output_layer, x.T)
-        if self.output_bias:
+        if self.use_bias:
             res = res + self.output_bias[:, None]
-        return F.softmax(res.T, dim=1)
+
+        if self.use_softmax:
+            return F.softmax(res.T, dim=1)
+        else:
+            return res.T
 
 
     def get_cap(self, x, cap):

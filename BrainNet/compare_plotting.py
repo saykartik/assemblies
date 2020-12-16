@@ -5,6 +5,7 @@ Created by Brett Karopczyc, November 2020
 
 from compare_util import *
 
+# Set plotting style
 use_seaborn = True
 if use_seaborn:
     plt.style.use('seaborn')
@@ -12,6 +13,9 @@ if use_seaborn:
     default_colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
     default_colors += ['#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
     plt.rcParams['axes.prop_cycle'] = plt.cycler(color=default_colors)
+
+    # Add a semi-transparent backgroud to the legend for legibility
+    plt.rcParams['legend.frameon'] = 'True'
 
 # Common sets of rules
 baseline_rules = ['GD', 'RNN']
@@ -50,3 +54,13 @@ plot_compare_results(stats_file, baseline_rules + good_rules, 'ReLU (Hidden-Laye
 
 # ----------------------------------------------------------------------------------------------------------------------
 # MNIST plots
+
+# Output Rule Only
+stats_file = 'comparing_mnist_output.p'
+plot_compare_results(stats_file, baseline_rules + good_rules, 'MNIST (Output rule)', 'compare_mnist_output')
+
+# Hidden-Layer Rule Only
+stats_file = 'comparing_mnist_hidden-layer.p'
+plot_compare_results(stats_file, baseline_rules + good_rules, 'MNIST (Hidden-Layer rule)', 'compare_mnist_hl')
+
+# ----------------------------------------------------------------------------------------------------------------------

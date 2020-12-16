@@ -47,7 +47,7 @@ def quick_get_data(which, dim, N=10000, split=0.75, relu_k=1000):
         class1_cnt = np.sum(y == 1)
         total = class0_cnt + class1_cnt
         print(
-            f'Class 0: {class0_cnt} ({class0_cnt*100/total:.1f}%)   Class 1: {class1_cnt} ({class1_cnt*100/total:.1f}%)')
+            f'Class 0: {class0_cnt} ({class0_cnt * 100 / total:.1f}%)   Class 1: {class1_cnt} ({class1_cnt * 100 / total:.1f}%)')
 
     elif which == 'mnist':
         # NOTE: Argument N is ignored here.
@@ -55,7 +55,7 @@ def quick_get_data(which, dim, N=10000, split=0.75, relu_k=1000):
             root='./data', train=True, download=True, transform=None)
         mnist_test = torchvision.datasets.MNIST(
             root='./data', train=False, download=True, transform=None)
-        
+
         print('MNIST train:', len(mnist_train))
         print('MNIST test:', len(mnist_test))
         X_train = np.array([np.array(pair[0]) for pair in mnist_train]) / 255.0
@@ -64,7 +64,7 @@ def quick_get_data(which, dim, N=10000, split=0.75, relu_k=1000):
         y_test = np.array([pair[1] for pair in mnist_test])
         X_train = X_train.reshape(X_train.shape[0], -1)
         X_test = X_test.reshape(X_test.shape[0], -1)
-        
+
         # print('Shuffling and reducing to train / test: 10000 / remainder, ignoring N...')
         X_train, y_train = shuffle(X_train, y_train)
         X_test, y_test = shuffle(X_test, y_test)
@@ -78,12 +78,11 @@ def quick_get_data(which, dim, N=10000, split=0.75, relu_k=1000):
     else:
         raise ValueError('Unknown or unused dataset: ' + which)
 
-
     if which != 'mnist':
-        X_train = X[:int(N*split)]
-        y_train = y[:int(N*split)]
-        X_test = X[int(N*split):]
-        y_test = y[int(N*split):]
+        X_train = X[:int(N * split)]
+        y_train = y[:int(N * split)]
+        X_test = X[int(N * split):]
+        y_test = y[int(N * split):]
 
     print('X_train:', X_train.shape)
     print('X_test:', X_test.shape)
@@ -119,7 +118,7 @@ def evaluate_brain(brain_fact, n,
 
     for run in range(num_runs):
         print()
-        print(f'Run {run+1} / {num_runs}...')
+        print(f'Run {run + 1} / {num_runs}...')
 
         # Upstream.
         success = False
@@ -151,7 +150,7 @@ def evaluate_brain(brain_fact, n,
             X_train, y_train, brain, num_epochs=num_epochs_downstream,
             batch_size=batch_size, vanilla=False, learn_rate=learn_rate,
             X_test=X_test, y_test=y_test, verbose=False,
-            stats_interval=300, disable_backprop=not(downstream_backprop),
+            stats_interval=300, disable_backprop=not (downstream_backprop),
             use_gpu=use_gpu)
 
         # Save this run.
@@ -196,7 +195,7 @@ def evaluate_up_down(brain_up_fact, brain_down_fact, n_up, n_down,
 
     for run in range(num_runs):
         print()
-        print(f'Run {run+1} / {num_runs}...')
+        print(f'Run {run + 1} / {num_runs}...')
 
         # Upstream.
         success = False
@@ -220,14 +219,14 @@ def evaluate_up_down(brain_up_fact, brain_down_fact, n_up, n_down,
 
             if num_downstream_subruns > 1:
                 print()
-                print(f'Run {run+1} / {num_runs}...')
-                print(f'Subrun {subrun+1} / {num_downstream_subruns}...')
+                print(f'Run {run + 1} / {num_runs}...')
+                print(f'Subrun {subrun + 1} / {num_downstream_subruns}...')
 
             # Transfer rules.
             brain_down = brain_down_fact()
             if isinstance(brain_down, FFLocalNet):
                 # FF-ANN.
-                brain_down.copy_rules(brain_up)
+                brain_down.copy_rules(brain_up, brain_down.options.use_output_rule)
             else:
                 # RNN.
                 try:
@@ -253,7 +252,7 @@ def evaluate_up_down(brain_up_fact, brain_down_fact, n_up, n_down,
                 X_train, y_train, brain_down, num_epochs=num_epochs_downstream,
                 batch_size=batch_size, vanilla=False, learn_rate=learn_rate,
                 X_test=X_test, y_test=y_test, verbose=False,
-                stats_interval=300, disable_backprop=not(downstream_backprop),
+                stats_interval=300, disable_backprop=not (downstream_backprop),
                 use_gpu=use_gpu)
 
             # Save this subrun.    
@@ -283,7 +282,7 @@ def evaluate_vanilla(brain_fact, dim, dataset='halfspace', num_runs=1, num_epoch
 
     for run in range(num_runs):
         print()
-        print(f'Run {run+1} / {num_runs}...')
+        print(f'Run {run + 1} / {num_runs}...')
 
         brain = brain_fact()
 
@@ -320,7 +319,7 @@ def convert_multi_stats_uncertainty(multi_stats):
     all_losses = np.array([s[0] for s in multi_stats])
     all_train_acc = np.array([s[1] for s in multi_stats])
     all_test_acc = np.array([s[2] for s in multi_stats])
-#     print('all_losses:', all_losses.shape)
+    #     print('all_losses:', all_losses.shape)
 
     # Summarize by calculating things across the 'run' dimension.
     losses_mean = all_losses.mean(axis=0)
@@ -329,8 +328,8 @@ def convert_multi_stats_uncertainty(multi_stats):
     losses_std = all_losses.std(axis=0)
     train_acc_std = all_train_acc.std(axis=0)
     test_acc_std = all_test_acc.std(axis=0)
-#     print('losses_mean:', losses_mean.shape)
-#     print('losses_std:', losses_std.shape)
+    #     print('losses_mean:', losses_mean.shape)
+    #     print('losses_std:', losses_std.shape)
 
     sample_counts = multi_stats[0][3]  # We assume that this is the same everywhere!
     other_stats = None  # I wouldn't bother to combine this.
@@ -432,14 +431,14 @@ def get_colors_styles(labels):
     styles = ['solid'] * len(labels)
 
     # Handle exceptions.
-#     if len(labels) == 8:
-#         colors = [default_colors[0]] * len(labels)
-#         colors[0] = default_colors[0]  # RNN
-#         colors[1] = colors[2] = colors[3] = default_colors[1]  # PrePost
-#         colors[4] = colors[5] = colors[6] = default_colors[2]  # PrePostCount
-#         colors[7] = default_colors[3]  # Vanilla
-#         styles[2] = styles[5] = 'dashed'
-#         styles[3] = styles[6] = 'dotted'
+    #     if len(labels) == 8:
+    #         colors = [default_colors[0]] * len(labels)
+    #         colors[0] = default_colors[0]  # RNN
+    #         colors[1] = colors[2] = colors[3] = default_colors[1]  # PrePost
+    #         colors[4] = colors[5] = colors[6] = default_colors[2]  # PrePostCount
+    #         colors[7] = default_colors[3]  # Vanilla
+    #         styles[2] = styles[5] = 'dashed'
+    #         styles[3] = styles[6] = 'dotted'
 
     return colors, styles
 
@@ -450,7 +449,7 @@ def plot_compare_models(all_stats_up, all_stats_down, labels, title_up, title_do
     only one metric (test balanced accuracy) across MANY models.
     '''
     num_models = len(all_stats_up)
-    assert(num_models == len(all_stats_down) and num_models == len(labels))
+    assert (num_models == len(all_stats_down) and num_models == len(labels))
 
     fig, ax = plt.subplots(1, 2, figsize=(10, 4))
     colors, styles = get_colors_styles(labels)
@@ -487,7 +486,8 @@ def plot_compare_models(all_stats_up, all_stats_down, labels, title_up, title_do
         if plot_std:
             if agg_stats_up is not None:
                 ax[0].fill_between(meta_sample_counts, meta_test_acc - meta_test_acc_std,
-                                   meta_test_acc + meta_test_acc_std, alpha=0.3, facecolor=colors[i], linestyle=styles[i])
+                                   meta_test_acc + meta_test_acc_std, alpha=0.3, facecolor=colors[i],
+                                   linestyle=styles[i])
             ax[1].fill_between(plas_sample_counts, plas_test_acc - plas_test_acc_std,
                                plas_test_acc + plas_test_acc_std, alpha=0.3, facecolor=colors[i], linestyle=styles[i])
 
@@ -514,6 +514,7 @@ def results_filepath(filename):
         os.makedirs(_RESULTS_DIR)
     filepath = os.path.join(_RESULTS_DIR, filename)
     return filepath
+
 
 def plots_filepath(filename):
     """Return a file path for the supplied file name"""
