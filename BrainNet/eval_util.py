@@ -219,6 +219,7 @@ def evaluate_up_down(brain_up_fact, brain_down_fact, n_up, n_down,
         for subrun in range(num_downstream_subruns):
 
             if num_downstream_subruns > 1:
+                print()
                 print(f'Run {run+1} / {num_runs}...')
                 print(f'Subrun {subrun+1} / {num_downstream_subruns}...')
 
