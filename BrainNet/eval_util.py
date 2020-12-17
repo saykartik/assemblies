@@ -1,5 +1,5 @@
 '''
-Tools for running experiments.
+Tools for running various experiments.
 Created by Basile Van Hoorick, November 2020.
 '''
 
@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 import os
+import pathlib
 import torch
 import torchvision
 import torchvision.datasets
@@ -403,6 +404,12 @@ def plot_curves(agg_stats_up, agg_stats_down, title_up, title_down, save_name='f
     ax[1].set_xlim(0, plas_sample_counts[-1])
     ax[1].set_title(title_down)
     ax[1].legend()
+    
+    fig.tight_layout()
+
+    # Create parent directory if needed.
+    if not os.path.exists(pathlib.Path(save_name).parent):
+        os.makedirs(pathlib.Path(save_name).parent)
 
     # Store and display graph.
     print('Saving figure to:', save_name)
@@ -494,11 +501,20 @@ def plot_compare_models(all_stats_up, all_stats_down, labels, title_up, title_do
     ax[0].set_xlabel('Cumulative number of training samples')
     ax[0].set_ylabel('Test balanced accuracy')
     ax[0].set_title(title_up)
+    if agg_stats_up is not None:
+        ax[0].set_xlim(meta_sample_counts[0], meta_sample_counts[-1])
     ax[0].legend()
     ax[1].set_xlabel('Cumulative number of training samples')
     ax[1].set_ylabel('Test balanced accuracy')
     ax[1].set_title(title_down)
+    ax[1].set_xlim(plas_sample_counts[0], plas_sample_counts[-1])
     ax[1].legend()
+
+    fig
+
+    # Create parent directory if needed.
+    if not os.path.exists(pathlib.Path(save_name).parent):
+        os.makedirs(pathlib.Path(save_name).parent)
 
     # Store and display graph.
     print('Saving figure to:', save_name)
