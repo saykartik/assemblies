@@ -226,7 +226,7 @@ def evaluate_up_down(brain_up_fact, brain_down_fact, n_up, n_down,
             brain_down = brain_down_fact()
             if isinstance(brain_down, FFLocalNet):
                 # FF-ANN.
-                brain_down.copy_rules(brain_up, brain_down.options.use_output_rule)
+                brain_down.copy_rules(brain_up, output_rule=brain_down.options.use_output_rule)
             else:
                 # RNN.
                 try:
