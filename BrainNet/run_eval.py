@@ -8,7 +8,6 @@ Created by Basile Van Hoorick, December 2020.
 '''
 
 # Library imports.
-from BrainNet.eval_util import rules_filepath
 import argparse
 import datetime
 import pickle
