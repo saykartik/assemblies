@@ -337,7 +337,7 @@ def main(args):
                       gd_graph_rule=args.use_graph_rule,
                       use_output_rule=args.use_output_rule,
                       gd_output_rule=args.use_output_rule,
-                      gd_output=False)
+                      gd_output=not(args.use_output_rule))
     opts_down = Options(gd_input=True,
                         use_graph_rule=args.use_graph_rule,
                         gd_graph_rule=False,  # Not meta-trainable anymore!
