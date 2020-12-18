@@ -42,6 +42,17 @@ property_ranges = {
     'van': [1, 0]
 }
 
+model_legends = {
+    'ff': 'GD',
+    'rnn': 'RNN',
+    'table_prepost': 'PrePost',
+    'table_prepostcount': 'PrePostCount',
+    'table_prepostpercent': 'PrePostPercent',
+    'reg_oneprepost': 'ANNPrePost',
+    'reg_oneprepostall': 'ANNPrePostAll',
+    'reg_allpostall': 'ANNAllPostAll'
+}
+
 
 # Process arguments.
 parser = argparse.ArgumentParser()
@@ -137,6 +148,7 @@ def _load_results_from_files(args, must_contain='', must_not_contain='', summari
             cur_res = pickle.load(f)
 
         if summarize:
+            # Typically, stats_up = length 5 list, stats_down = length 10 list
             (stats_up, stats_down) = cur_res
             if stats_up is not None:
                 stats_up = convert_multi_stats_uncertainty(stats_up)
@@ -160,7 +172,7 @@ def _print_mean_metrics(args):
             must_contain = ''
             must_not_contain = ''
             if parameter == 'model':
-                must_contain = value
+                must_contain = value + '_'
             elif parameter in ['uni', 'dsbp', 'van']:
                 # Boolean => filter differently.
                 if value:
@@ -218,22 +230,32 @@ def _plot_sweeps(args):
     print('==== Generate Parameter Comparison Graphs ====')
 
     # Plot different models.
-    must_contain = ['_nhl2', '_hw500', '_duphalfspace', '_uni']
-    must_not_contain = ['_dsbp', 'reg_oneprepostall']
-    results = _load_results_from_files(
-        args, must_contain=must_contain, must_not_contain=must_not_contain, summarize=True)
-    stats_up = []
-    stats_down = []
-    labels = []
-    for (exp_tag, stats) in results:
-        model_name = _get_property_from_tag(exp_tag, 'model')
-        stats_up.append(stats[0])
-        stats_down.append(stats[1])
-        labels.append(model_name)
-    plot_compare_models(stats_up, stats_down, labels,
-                        'Upstream meta-learning on halfspace',
-                        'Downstream training on MNIST',
-                        os.path.join(args.plots_dir, 'models_nhl2'))
+    for nhl in ['_nhl1', '_nhl2', '_nhl3']:
+        for hw in ['_hw100', '_hw500']:
+            must_contain = [nhl, hw, '_duphalfspace', '_uni']
+            must_not_contain = ['_dsbp', 'table_prepostcount', 'reg_oneprepostall', 'reg_allpostall']
+            results = _load_results_from_files(
+                args, must_contain=must_contain, must_not_contain=must_not_contain, summarize=True)
+            must_contain = [nhl, hw, '_van']
+            results.append(*_load_results_from_files(
+                args, must_contain=must_contain, summarize=True))
+            reorder = [4, 1, 3, 2, 0]
+            if len(results) >= len(reorder):
+                results = [results[i] for i in reorder]
+            stats_up = []
+            stats_down = []
+            labels = []
+            for (exp_tag, stats) in results:
+                model_name = _get_property_from_tag(exp_tag, 'model')
+                # legend_text = model_legends[model_name]
+                legend_text = model_name
+                stats_up.append(stats[0])
+                stats_down.append(stats[1])
+                labels.append(legend_text)
+            plot_compare_models(stats_up, stats_down, labels,
+                                'Upstream meta-learning on halfspace',
+                                'Downstream training on MNIST',
+                                os.path.join(args.plots_dir, 'models' + nhl + hw))
 
     # Plot different hidden layer counts.
 

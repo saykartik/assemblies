@@ -168,7 +168,8 @@ def evaluate_up_down(brain_up_fact, brain_down_fact, n_up, n_down,
                      num_runs=1, num_rule_epochs=10, num_epochs_upstream=1, num_epochs_downstream=1,
                      num_downstream_subruns=1,
                      get_model=False, min_upstream_acc=0.7, batch_size=100, learn_rate=1e-2,
-                     data_size=10000, relu_k=1000, use_gpu=False):
+                     data_size=10000, relu_k=1000, use_gpu=False,
+                     upstream_only=False, return_upstream_brains=False):
     '''
     Evaluates a PAIR of brains on the quality of meta-learning
     and rule interpretations by training with transferred rules.
@@ -191,16 +192,17 @@ def evaluate_up_down(brain_up_fact, brain_down_fact, n_up, n_down,
         raise ValueError('The nullness of dataset_down does not agree with that of n_down.')
 
     multi_stats_up = []
-    multi_stats_down = []
-    failures = 0
+    multi_stats_down = []  # Will remain empty if upstream_only.
+    upstream_brains = []
 
     for run in range(num_runs):
         print()
         print(f'Run {run + 1} / {num_runs}...')
 
-        # Upstream.
+        # Upstream (once per run).
         success = False
-        while not success and failures < 5:
+        failures = 0
+        while not success and failures < 3:
             brain_up = brain_up_fact()  # NOTE: Some initializations are unlucky.
 
             print('Meta-learning on ' + dataset_up + '...')
@@ -214,50 +216,58 @@ def evaluate_up_down(brain_up_fact, brain_down_fact, n_up, n_down,
             success = (stats_up[2][-1] >= min_upstream_acc)
             if not success:
                 failures += 1
-                print(f'Final upstream test acc {stats_up[2][-1]:.4f} not high enough, retrying... (failures = {failures})')
+                print(
+                    f'Final upstream test acc {stats_up[2][-1]:.4f} not high enough, retrying... (failures = {failures})')
 
-        for subrun in range(num_downstream_subruns):
+        # Retain network e.g. for extracting rules later.
+        if return_upstream_brains:
+            upstream_brains.append(brain_up)
+        
+        if not upstream_only:
 
-            if num_downstream_subruns > 1:
-                print()
-                print(f'Run {run + 1} / {num_runs}...')
-                print(f'Subrun {subrun + 1} / {num_downstream_subruns}...')
+            # Downstream (subrun loop).
+            for subrun in range(num_downstream_subruns):
 
-            # Transfer rules.
-            brain_down = brain_down_fact()
-            if isinstance(brain_down, FFLocalNet):
-                # FF-ANN.
-                brain_down.copy_rules(brain_up, output_rule=brain_down.options.use_output_rule)
-            else:
-                # RNN.
-                try:
-                    if brain_down.options.use_graph_rule:
-                        brain_down.set_rnn_rule(brain_up.get_rnn_rule())
-                    if brain_down.options.use_output_rule:
-                        brain_down.set_output_rule(brain_up.get_output_rule())
-                except:
-                    print('FALLBACK: direct assignment of rules...')
-                    if downstream_backprop:
-                        print('=> WARNING: Rules might still be updated by GD this way')
-                    brain_down.rnn_rule = brain_up.rnn_rule
-                    brain_down.output_rule = brain_up.output_rule
+                if num_downstream_subruns > 1:
+                    print()
+                    print(f'Run {run + 1} / {num_runs}...')
+                    print(f'Subrun {subrun + 1} / {num_downstream_subruns}...')
 
-            # Downstream.
-            if dataset_down is not None and n_down is not None:
-                print('Training NEW brain instance on ' + dataset_down + '...')
-                X_train, y_train, X_test, y_test = quick_get_data(
-                    dataset_down, n_down, N=data_size, relu_k=relu_k)
-            else:
-                print('Training NEW brain instance on the same dataset instance...')
-            stats_down = train_downstream(
-                X_train, y_train, brain_down, num_epochs=num_epochs_downstream,
-                batch_size=batch_size, vanilla=False, learn_rate=learn_rate,
-                X_test=X_test, y_test=y_test, verbose=False,
-                stats_interval=300, disable_backprop=not (downstream_backprop),
-                use_gpu=use_gpu)
+                # Transfer rules.
+                brain_down = brain_down_fact()
+                if isinstance(brain_down, FFLocalNet):
+                    # FF-ANN.
+                    brain_down.copy_rules(brain_up, output_rule=brain_down.options.use_output_rule)
+                else:
+                    # RNN.
+                    try:
+                        if brain_down.options.use_graph_rule:
+                            brain_down.set_rnn_rule(brain_up.get_rnn_rule())
+                        if brain_down.options.use_output_rule:
+                            brain_down.set_output_rule(brain_up.get_output_rule())
+                    except:
+                        print('FALLBACK: direct assignment of rules...')
+                        if downstream_backprop:
+                            print('=> WARNING: Rules might still be updated by GD this way')
+                        brain_down.rnn_rule = brain_up.rnn_rule
+                        brain_down.output_rule = brain_up.output_rule
 
-            # Save this subrun.    
-            multi_stats_down.append(stats_down)
+                # Downstream (within subrun).
+                if dataset_down is not None and n_down is not None:
+                    print('Training NEW brain instance on ' + dataset_down + '...')
+                    X_train, y_train, X_test, y_test = quick_get_data(
+                        dataset_down, n_down, N=data_size, relu_k=relu_k)
+                else:
+                    print('Training NEW brain instance on the same dataset instance...')
+                stats_down = train_downstream(
+                    X_train, y_train, brain_down, num_epochs=num_epochs_downstream,
+                    batch_size=batch_size, vanilla=False, learn_rate=learn_rate,
+                    X_test=X_test, y_test=y_test, verbose=False,
+                    stats_interval=300, disable_backprop=not(downstream_backprop),
+                    use_gpu=use_gpu)
+
+                # Save this subrun.
+                multi_stats_down.append(stats_down)
 
         # Save this run.
         multi_stats_up.append(stats_up)
@@ -265,7 +275,11 @@ def evaluate_up_down(brain_up_fact, brain_down_fact, n_up, n_down,
         print()
 
     if get_model:
+        # Return latest downstream network.
         return (multi_stats_up, multi_stats_down), brain_down
+    elif return_upstream_brains:
+        # Return all upstream networks.
+        return (multi_stats_up, multi_stats_down), upstream_brains
     else:
         return (multi_stats_up, multi_stats_down)
 
@@ -404,7 +418,7 @@ def plot_curves(agg_stats_up, agg_stats_down, title_up, title_down, save_name='f
     ax[1].set_xlim(0, plas_sample_counts[-1])
     ax[1].set_title(title_down)
     ax[1].legend()
-    
+
     fig.tight_layout()
 
     # Create parent directory if needed.
@@ -464,6 +478,7 @@ def plot_compare_models(all_stats_up, all_stats_down, labels, title_up, title_do
     if len(labels) > len(colors):
         raise ValueError("Too many plots at once (we don't have that many colors)")
 
+    has_metalearning = False
     for i in range(num_models):
         agg_stats_up = all_stats_up[i]
         agg_stats_down = all_stats_down[i]
@@ -473,6 +488,7 @@ def plot_compare_models(all_stats_up, all_stats_down, labels, title_up, title_do
             if agg_stats_up is not None:
                 (meta_losses, meta_train_acc, meta_test_acc,
                  meta_sample_counts, meta_stats) = agg_stats_up
+                has_metalearning = True
             (plas_losses, plas_train_acc, plas_test_acc, plas_sample_counts, plas_stats) = agg_stats_down
             plot_std = False
 
@@ -486,31 +502,31 @@ def plot_compare_models(all_stats_up, all_stats_down, labels, title_up, title_do
             plot_std = True
 
         if agg_stats_up is not None:
-            ax[0].plot(meta_sample_counts, meta_test_acc, label=labels[i],
+            ax[0].plot(meta_sample_counts, meta_test_acc * 100, label=labels[i],
                        color=colors[i], linestyle=styles[i])
-        ax[1].plot(plas_sample_counts, plas_test_acc, label=labels[i],
+        ax[1].plot(plas_sample_counts, plas_test_acc * 100, label=labels[i],
                    color=colors[i], linestyle=styles[i])
         if plot_std:
             if agg_stats_up is not None:
-                ax[0].fill_between(meta_sample_counts, meta_test_acc - meta_test_acc_std,
-                                   meta_test_acc + meta_test_acc_std, alpha=0.3, facecolor=colors[i],
+                ax[0].fill_between(meta_sample_counts, (meta_test_acc - meta_test_acc_std) * 100,
+                                   (meta_test_acc + meta_test_acc_std) * 100, alpha=0.3, facecolor=colors[i],
                                    linestyle=styles[i])
-            ax[1].fill_between(plas_sample_counts, plas_test_acc - plas_test_acc_std,
-                               plas_test_acc + plas_test_acc_std, alpha=0.3, facecolor=colors[i], linestyle=styles[i])
+            ax[1].fill_between(plas_sample_counts, (plas_test_acc - plas_test_acc_std) * 100,
+                               (plas_test_acc + plas_test_acc_std) * 100, alpha=0.3, facecolor=colors[i], linestyle=styles[i])
 
     ax[0].set_xlabel('Cumulative number of training samples')
-    ax[0].set_ylabel('Test balanced accuracy')
+    ax[0].set_ylabel('Test balanced accuracy [%]')
     ax[0].set_title(title_up)
-    if agg_stats_up is not None:
+    if has_metalearning:
         ax[0].set_xlim(meta_sample_counts[0], meta_sample_counts[-1])
     ax[0].legend()
     ax[1].set_xlabel('Cumulative number of training samples')
-    ax[1].set_ylabel('Test balanced accuracy')
+    ax[1].set_ylabel('Test balanced accuracy [%]')
     ax[1].set_title(title_down)
     ax[1].set_xlim(plas_sample_counts[0], plas_sample_counts[-1])
     ax[1].legend()
 
-    fig
+    fig.tight_layout()
 
     # Create parent directory if needed.
     if not os.path.exists(pathlib.Path(save_name).parent):
@@ -520,7 +536,7 @@ def plot_compare_models(all_stats_up, all_stats_down, labels, title_up, title_do
     print('Saving figure to:', save_name)
     plt.savefig(save_name + '.pdf', dpi=192)
     plt.savefig(save_name + '.png', dpi=192)
-    plt.show()
+    # plt.show()
 
 
 def results_filepath(filename):
@@ -529,6 +545,15 @@ def results_filepath(filename):
     if not os.path.isdir(_RESULTS_DIR):
         os.makedirs(_RESULTS_DIR)
     filepath = os.path.join(_RESULTS_DIR, filename)
+    return filepath
+
+
+def rules_filepath(filename_prefix):
+    """Return a file path for the supplied file name"""
+    _RULES_DIR = 'rules/'
+    if not os.path.isdir(_RULES_DIR):
+        os.makedirs(_RULES_DIR)
+    filepath = os.path.join(_RULES_DIR, filename)
     return filepath
 
 

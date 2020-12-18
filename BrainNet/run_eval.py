@@ -8,6 +8,7 @@ Created by Basile Van Hoorick, December 2020.
 '''
 
 # Library imports.
+from BrainNet.eval_util import rules_filepath
 import argparse
 import datetime
 import pickle
@@ -109,12 +110,16 @@ parser.add_argument('--vanilla', default=False, type=str2bool,
 parser.add_argument('--downstream_backprop', default=True, type=str2bool,
                     help='Train with gradient descent and backpropagation on the downstream '
                     'network instance (NOTE: not supported by RNN) (default: True).')
+parser.add_argument('--upstream_only', default=False, type=str2bool,
+                    help='If True, meta-learn only and ignore downstream task training.')
 
 # Miscellaneous.
 parser.add_argument('--ignore_if_exist', default=True, type=str2bool,
                     help='If True, do not run experiment if the results file already exists.')
 parser.add_argument('--use_gpu', default=False, type=str2bool,
                     help='If True, try to use CUDA on an NVIDIA GPU.')
+parser.add_argument('--store_rules', default=False, type=str2bool,
+                    help='If True, store meta-learned plasticity rules in numpy format to the results directory.')
 
 
 def _create_table_rules(args):
@@ -269,10 +274,12 @@ def main(args):
     if args.model == 'rnn' and args.downstream_backprop:
         print('===> WARNING: Forcing downstream_backprop to False because model is rnn!')
         args.downstream_backprop = False
+    
     if args.dataset_up == 'mnist':
         args.n_up = 28 * 28
     if args.dataset_down == 'mnist':
         args.n_down = 28 * 28
+    
     if args.vanilla:
         print('===> NOTE: Vanilla is enabled, so we do not care about rules, '
               'and only the FF versus RNN distinction matters.')
@@ -280,6 +287,10 @@ def main(args):
         if args.model != 'rnn':
             print('===> Renaming model parameter to ff because it is not rnn.')
             args.model = 'ff'
+        if args.upstream_only:
+            raise ValueError('Vanilla GD is downstream-only by nature, so enabling upstream_only does not make sense.')
+        if args.store_rules:
+            raise ValueError('Vanilla GD does not have plasticity rules, so cannot store them.')
 
     # Construct experiment tag for results file name.
     exp_tag = args.model
@@ -315,10 +326,11 @@ def main(args):
     print('Experiment tag:', exp_tag)
 
     # Get destination file path for results.
-    dst_path = results_filepath(exp_tag + '.p')
-    if os.path.isfile(dst_path) and args.ignore_if_exist:
+    stats_dst_path = results_filepath(exp_tag + '.p')
+    if os.path.isfile(stats_dst_path) and args.ignore_if_exist:
         print('===> Already exists! Skipping...')
         sys.exit(0)
+    rules_dst_path = rules_filepath(exp_tag + '_rules.p')
 
     # Get meta-learning and training options.
     opts_up = Options(gd_input=True,
@@ -363,7 +375,7 @@ def main(args):
         min_upstream_acc = 0.4 if args.model in ['table_postcount', 'reg_onepostall'] else 0.7
 
         # Start evaluation.
-        stats_up, stats_down = evaluate_up_down(
+        eval_returned = evaluate_up_down(
             brain_fact_up, brain_fact_down, args.n_up, args.n_down,
             dataset_up=args.dataset_up, dataset_down=args.dataset_down,
             downstream_backprop=args.downstream_backprop,
@@ -374,7 +386,12 @@ def main(args):
             min_upstream_acc=min_upstream_acc,
             batch_size=args.batch_size, learn_rate=args.learn_rate,
             data_size=args.data_size, relu_k=1000,
-            use_gpu=args.use_gpu)
+            use_gpu=args.use_gpu, upstream_only=args.upstream_only,
+            return_upstream_brains=args.store_rules)
+        if args.store_rules:
+            (stats_up, stats_down), upstream_brains = eval_returned
+        else:
+            (stats_up, stats_down) = eval_returned
 
     else:
 
@@ -398,9 +415,28 @@ def main(args):
         stats_up, stats_down = None, multi_stats
 
     # Store all stats.
-    with open(dst_path, 'wb') as f:
+    with open(stats_dst_path, 'wb') as f:
         pickle.dump((stats_up, stats_down), f)
-    print('Stored all stats to:', dst_path)
+    print('Stored all stats to:', stats_dst_path)
+
+    # Store rules if desired.
+    if args.store_rules:
+        all_rules = []
+        for network in upstream_brains:
+            try:
+                hidden_rule = network.get_hidden_layer_rule()
+            except:
+                print('No (single) hidden rule available!')
+                hidden_rule = None
+            try:
+                output_rule = network.get_output_rule()
+            except:
+                print('No output rule available!')
+                output_rule = None
+            all_rules.append((hidden_rule, output_rule))
+        with open(rules_dst_path, 'wb') as f:
+            pickle.dump(all_rules, f)
+        print('Stored all rules to:', rules_dst_path)
 
 
 if __name__ == '__main__':
