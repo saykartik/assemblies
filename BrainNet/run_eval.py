@@ -343,7 +343,7 @@ def main(args):
                         gd_graph_rule=False,  # Not meta-trainable anymore!
                         use_output_rule=args.use_output_rule,
                         gd_output_rule=False,  # Not meta-trainable anymore!
-                        gd_output=False)
+                        gd_output=not(args.use_output_rule))
 
     # Get weight update scheme.
     # Deviates from paper (works for FF but not for RNN).

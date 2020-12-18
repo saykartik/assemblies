@@ -548,7 +548,7 @@ def results_filepath(filename):
     return filepath
 
 
-def rules_filepath(filename_prefix):
+def rules_filepath(filename):
     """Return a file path for the supplied file name"""
     _RULES_DIR = 'rules/'
     if not os.path.isdir(_RULES_DIR):
