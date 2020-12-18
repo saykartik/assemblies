@@ -291,6 +291,9 @@ def main(args):
         if args.store_rules:
             raise ValueError('Vanilla GD does not have plasticity rules, so cannot store them.')
 
+    if args.upstream_only:
+        args.downstream_backprop = False
+
     # Construct experiment tag for results file name.
     exp_tag = args.model
     if not args.vanilla:
@@ -322,6 +325,8 @@ def main(args):
         exp_tag += f'_van'
     if args.downstream_backprop:
         exp_tag += f'_dsbp'
+    if args.upstream_only:
+        exp_tag += f'_upo'
     print('Experiment tag:', exp_tag)
 
     # Get destination file path for results.

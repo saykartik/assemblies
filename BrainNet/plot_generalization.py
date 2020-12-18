@@ -15,7 +15,7 @@ import sys
 from eval_util import *
 
 
-_DEFAULT_RESULTS_DIR = 'generalization_results/'
+_DEFAULT_RESULTS_DIR = r'D:\Development\CVR Data\Plasticity Rules\generalization_results'
 _DEFAULT_PLOTS_DIR = 'generalization_plots/'
 
 table_models = ['table_prepost', 'table_prepostcount', 'table_prepostpercent']
