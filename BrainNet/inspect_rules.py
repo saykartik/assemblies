@@ -263,7 +263,7 @@ def main(args):
         # Add a semi-transparent backgroud to the legend for legibility
         plt.rcParams['legend.frameon'] = 'True'
         
-    # _print_rules(args)
+    _print_rules(args)
     _plot_rules(args)
 
 

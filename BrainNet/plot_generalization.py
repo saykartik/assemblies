@@ -247,8 +247,8 @@ def _plot_sweeps(args):
             labels = []
             for (exp_tag, stats) in results:
                 model_name = _get_property_from_tag(exp_tag, 'model')
-                # legend_text = model_legends[model_name]
-                legend_text = model_name
+                legend_text = model_legends[model_name]
+                # legend_text = model_name
                 stats_up.append(stats[0])
                 stats_down.append(stats[1])
                 labels.append(legend_text)
