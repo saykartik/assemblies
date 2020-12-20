@@ -1,0 +1,82 @@
+table_prepost_gr_nhl2_hw100_cp0.5_pc50_uni_duprelu_nup10_mup2_nre10_neu1_ddohalfspace_ndo20_mdo2_ds10000_runs5_ned1_bs100_lr0.010_dsbp
+=> Has hidden layer rule
+Mean hidden:
+[[0.8356 0.5448]
+ [0.5124 0.8055]]
+
+Stddev hidden:
+[[0.0289 0.0572]
+ [0.036  0.041 ]]
+
+
+table_prepost_gr_nhl2_hw32_cp0.5_pc16_uni_duphalfspace_nup10_mup2_nre10_neu1_ddohalfspace_ndo20_mdo2_ds10000_runs5_ned1_bs100_lr0.010_dsbp
+=> Has hidden layer rule
+Mean hidden:
+[[1.1327 0.5943]
+ [0.4133 1.1822]]
+
+Stddev hidden:
+[[0.0218 0.0188]
+ [0.0258 0.035 ]]
+
+
+table_prepost_gr_or_nhl2_hw100_cp0.5_pc50_uni_duprelu_nup10_mup2_nre10_neu1_ddohalfspace_ndo20_mdo2_ds10000_runs5_ned1_bs100_lr0.010_dsbp
+=> Has hidden layer rule
+=> Has output layer rule
+Mean hidden:
+[[0.7036 0.5483]
+ [0.5588 0.6462]]
+
+Stddev hidden:
+[[0.3487 0.0978]
+ [0.2775 0.0845]]
+
+Mean output:
+[[ 0.2886 -0.2886]
+ [-0.338   0.338 ]]
+
+Stddev output:
+[[0.172 0.172]
+ [0.088 0.088]]
+
+
+table_prepost_gr_or_nhl2_hw32_cp0.5_pc16_uni_duphalfspace_nup10_mup2_nre10_neu1_ddohalfspace_ndo20_mdo2_ds10000_runs5_ned1_bs100_lr0.010_dsbp
+=> Has hidden layer rule
+=> Has output layer rule
+Mean hidden:
+[[1.0614 0.4539]
+ [0.4528 0.9561]]
+
+Stddev hidden:
+[[0.0244 0.034 ]
+ [0.0389 0.0271]]
+
+Mean output:
+[[ 0.7998 -0.7998]
+ [-0.7293  0.7293]]
+
+Stddev output:
+[[0.0397 0.0397]
+ [0.0212 0.0212]]
+
+
+table_prepost_or_nhl1_hw100_cp0.5_pc50_uni_duprelu_nup10_mup2_nre10_neu1_ddohalfspace_ndo20_mdo2_ds10000_runs5_ned1_bs100_lr0.010_dsbp
+=> Has output layer rule
+Mean output:
+[[ 0.9925 -0.9925]
+ [-1.3333  1.3333]]
+
+Stddev output:
+[[0.1408 0.1408]
+ [0.0576 0.0576]]
+
+
+table_prepost_or_nhl1_hw32_cp0.5_pc16_uni_duphalfspace_nup10_mup2_nre10_neu1_ddohalfspace_ndo20_mdo2_ds10000_runs5_ned1_bs100_lr0.010_dsbp
+=> Has output layer rule
+Mean output:
+[[ 1.2497 -1.2497]
+ [-1.3593  1.3593]]
+
+Stddev output:
+[[0.0212 0.0212]
+ [0.0276 0.0276]]

@@ -116,7 +116,8 @@ def _readable_exp_tag(exp_tag):
     return result
 
 
-def _load_results_from_files(args, must_contain='', must_not_contain='', summarize=False):
+def _load_results_from_files(args, must_contain='', must_not_contain='',
+                             summarize=False, pick_top=-1):
     '''
     Args:
         must_contain: Experiment tag (i.e. file name) must contain all non-empty strings of this list.
@@ -150,6 +151,8 @@ def _load_results_from_files(args, must_contain='', must_not_contain='', summari
         if summarize:
             # Typically, stats_up = length 5 list, stats_down = length 10 list
             (stats_up, stats_down) = cur_res
+            if pick_top > 0:
+                (stats_up, stats_down) = pick_top_runs(stats_up, stats_down, count=pick_top)
             if stats_up is not None:
                 stats_up = convert_multi_stats_uncertainty(stats_up)
             stats_down = convert_multi_stats_uncertainty(stats_down)
@@ -235,10 +238,12 @@ def _plot_sweeps(args):
             must_contain = [nhl, hw, '_duphalfspace', '_uni']
             must_not_contain = ['_dsbp', 'table_prepostcount', 'reg_oneprepostall', 'reg_allpostall']
             results = _load_results_from_files(
-                args, must_contain=must_contain, must_not_contain=must_not_contain, summarize=True)
+                args, must_contain=must_contain, must_not_contain=must_not_contain,
+                summarize=True, pick_top=7)
             must_contain = [nhl, hw, '_van']
             results.append(*_load_results_from_files(
-                args, must_contain=must_contain, summarize=True))
+                args, must_contain=must_contain,
+                summarize=True, pick_top=7))
             reorder = [4, 1, 3, 2, 0]
             if len(results) >= len(reorder):
                 results = [results[i] for i in reorder]
@@ -258,6 +263,7 @@ def _plot_sweeps(args):
                                 os.path.join(args.plots_dir, 'models' + nhl + hw))
 
     # Plot different hidden layer counts.
+    
 
     # Plot different hidden layer sizes.
 

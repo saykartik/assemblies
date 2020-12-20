@@ -16,7 +16,7 @@ import sys
 # Repository imports.
 from eval_util import *
 
-_DEFAULT_RESULTS_DIR = r'D:\Development\CVR Data\Plasticity Rules\results'
+_DEFAULT_RESULTS_DIR = r'D:\Development\CVR Data\Plasticity Rules\inspect_results'
 _DEFAULT_RULES_DIR = r'D:\Development\CVR Data\Plasticity Rules\rules'
 _DEFAULT_PLOTS_DIR = 'inspect_plots/'
 

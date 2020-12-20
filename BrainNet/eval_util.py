@@ -326,6 +326,27 @@ def evaluate_generalization(brain_up_fact, brain_down_fact, n_up, n_down, **kwar
     return evaluate_up_down(brain_up_fact, brain_down_fact, n_up, n_down, **kwargs)
 
 
+def pick_top_runs(stats_up, stats_down, count=7, num_subruns=2):
+    '''
+    To reduce variance and eliminate unlucky runs,
+    pick top performing runs as measured by integrated test accuracy.
+    '''
+    if count > len(stats_down):
+        return (stats_up, stats_down)
+
+    sum_test_accs = np.array([np.sum(s[2]) for s in stats_down])
+    top_indices_down = sum_test_accs.argsort()[-count:][::-1]
+    top_indices_up = list(set([i // num_subruns for i in top_indices_down]))
+    print(top_indices_up, top_indices_down)
+    
+    if stats_up is None:
+        new_stats_up = None
+    else:
+        new_stats_up = [stats_up[i] for i in top_indices_up]
+    new_stats_down = [stats_down[i] for i in top_indices_down]
+    return (new_stats_up, new_stats_down)
+
+
 def convert_multi_stats_uncertainty(multi_stats):
     '''
     Merge and summarize stats from multiple runs into one tuple that
