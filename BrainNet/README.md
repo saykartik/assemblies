@@ -6,7 +6,7 @@ This is an overview of the major updates and additions we've made to the origina
 
 ### New Class Hierarchy:
 
-![](PlasticityRules Class Hierarchy.png)
+![Class Hierarchy](PlasticityRules%20Class%20Hierarchy.png?raw=true "Title")
 
 ---
 ### Important Files & Directories
