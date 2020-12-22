@@ -3,6 +3,7 @@
 # Final Project
 # Group Members: Kartik Balasubramaniam (kb3127), Brett Karopczyc (bjk2161), Vincent Lin (vcl2122), Basile Van Hoorick (bv2279)
 # Author(s): Brett Karopczyc
+# Portions of this code are based on the LocalNetBase class (https://github.com/BrainNetwork/BrainNet)
 # ----------------------------------------------------------------------------------------------------------------------
 # Imports
 import torch
