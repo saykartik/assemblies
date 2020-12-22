@@ -18,6 +18,7 @@ FFLocalPlasticityRules directory \
 FFLocalLegacyClasses.py
 
 ##### Common Evaluation utilities
+train.y \
 eval_util.py \
 run_eval.py
 
