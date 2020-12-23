@@ -43,5 +43,10 @@ generalization_plot directory
 AdversarialExamples.py \
 notebooks/FF_experiments_adversarial.ipynb
 
+##### NLP research
+LanguageModels.py \
+LanguageUtils.py \
+notebooks/NLP_experiments.ipynb
+
 ---
 **Note:** The remaining files in the 'notebooks' directory are mostly obsolete versions of research that has been migrated to the files above.
