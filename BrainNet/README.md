@@ -32,7 +32,7 @@ compare_plotting.py
 ##### Rule Inspection research
 inspect_rules.py \
 inspect_scripts directory \
-inspect_plots directory
+inspect_plots directory \
 rules directory
 
 ##### Generalization research
