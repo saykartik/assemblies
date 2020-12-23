@@ -1,3 +1,10 @@
+# ----------------------------------------------------------------------------------------------------------------------
+# COMS 6998_008 Fall 2020: Computation and the Brain
+# Final Project
+# Group Members: Kartik Balasubramaniam (kb3127), Brett Karopczyc (bjk2161), Vincent Lin (vcl2122), Basile Van Hoorick (bv2279)
+# Author(s): Brett Karopczyc
+# Portions of this code are based on the BrainNet class (https://github.com/BrainNetwork/BrainNet)
+# ----------------------------------------------------------------------------------------------------------------------
 # Imports
 import torch
 import torch.nn as nn
